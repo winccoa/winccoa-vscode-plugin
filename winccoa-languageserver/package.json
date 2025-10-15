@@ -1,0 +1,92 @@
+{
+  "name": "winccoa-oa-lsp-starter",
+  "displayName": "WinCC OA Data Model LSP (Starter)",
+  "description": "Starter VS Code extension with an LSP server that provides IntelliSense for a WinCC OA data model. Uses winccoa-manager when available; otherwise falls back to an offline sample.",
+  "version": "0.0.1",
+  "publisher": "your-publisher",
+  "engines": {
+    "vscode": "^1.84.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:javascript",
+    "onLanguage:typescript",
+    "onCommand:winccoaLsp.reloadIndex"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "winccoaLsp.reloadIndex",
+        "title": "WinCC OA LSP: Reload Index"
+      }
+    ],
+    "configuration": {
+      "configurationDefaults": {
+        "[javascript]": {
+          "editor.quickSuggestions": {
+            "other": true,
+            "comments": false,
+            "strings": true
+          }
+        },
+        "[typescript]": {
+          "editor.quickSuggestions": {
+            "other": true,
+            "comments": false,
+            "strings": true
+          }
+        }
+      },
+      "type": "object",
+      "title": "WinCC OA LSP",
+      "properties": {
+        "winccoaLsp.mode": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "offline"
+          ],
+          "default": "auto",
+          "description": "auto: try to use winccoa-manager, fallback to offline sample; offline: always use sample."
+        },
+        "winccoaLsp.query": {
+          "type": "string",
+          "default": "SELECT '_original.._type' FROM '*.**'",
+          "description": "Initial dpQuery used to build the index when winccoa-manager is available."
+        },
+        "winccoaLsp.apiUrl": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Base URL of the API used by this extension."
+        },
+        "winccoaLsp.port": {
+          "type": "integer",
+          "default": 2087,
+          "description": "Port"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "postinstall": "node ./esbuild-notice.js || true"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.0",
+    "typescript": "^5.4.0",
+    "@types/winccoa-manager": "C:/Program Files/Siemens/WinCC_OA/3.21/javascript/@types/winccoa-manager",
+    "vscode": "^1.1.34",
+    "vscode-languageclient": "^9.0.1"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.1",
+    "vscode-jsonrpc": "^8.2.1",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.11"
+  }
+}
