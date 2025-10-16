@@ -14,7 +14,7 @@
 
 export const dpConfigAttributes: Map<string, Set<string>> = new Map<string, Set<string>>([
   // Peripheral address (driver-dependent; base attributes)
-  ['_address', new Set<string>([
+  ['_address', new Set<string>([ //_address..
     '_type',
     '_active',
     '_reference',

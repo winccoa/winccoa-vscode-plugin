@@ -9,25 +9,19 @@ import {
   InitializeResult,
   Hover,
   MarkupKind,
-  integer,
-  Range,
-  Position
 } from 'vscode-languageserver/node';
 import { StreamMessageReader, StreamMessageWriter } from 'vscode-jsonrpc/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { config } from 'node:process';
-import * as vscode from 'vscode';
-import { spawn } from 'child_process';
-import path from 'node:path';
-import { WinccoaSysConEvent, WinccoaSysConDpDetails } from 'winccoa-manager';
+import { WinccoaSysConDpDetails, WinccoaElementType } from 'winccoa-manager';
+import { dpConfigAttributes } from './wincc_oa_dpconfigs';
 
 // Index types
 type DpName = string;
-type DpePath = string;
 interface ModelIndex {
   dps: Set<DpName>;
-  cns: Map<string, Set<DpePath>>;
-  dpes: Map<DpName, Set<DpePath>>;
+  cns: Map<string, Map<string, string>>;
+  dpes: Map<DpName, Map<string, string>>;
+  views: Set<string>;
   sys: Set<string>;
 }
 // TODO: Add -dbg parameter to all the echos
@@ -56,13 +50,14 @@ const server = net.createServer((socket) => {
 
   // Each socket gets its own LSP connection and server state.
   const connection = createConnection(reader, writer);
-  //for child server
   //const connection = createConnection(process.stdin, process.stdout);
   const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
   // In-memory model
-  const model: ModelIndex = { dps: new Set(), dpes: new Map(), cns: new Map(), sys: new Set() };
+  const model: ModelIndex = { dps: new Set(), dpes: new Map(), cns: new Map(), sys: new Set(), views: new Set() };
 
   // Identify DPEs (leafs in the tree) with existing original value config
+  // DONE? TODO elememt den typ hinzufügen
+  // DONE? TODO CNS display name hinzufügen
   let initQuery = "SELECT '_original.._type' FROM '*.**'";
 
   // Attempt to load winccoa-manager dynamically
@@ -91,7 +86,6 @@ const server = net.createServer((socket) => {
       //console.log('dpQuery returned table with', Array.isArray(table) ? table.length : 'no', 'rows');
       
       if (Array.isArray(table)) {
-        // table like: [ ["",":_original.._value"], ["System1:DP1.", 2.34], ... ]
         for (let i = 1; i < table.length; i++) {
           const line = table[i];
           const name = String(line[0] ?? '').replace(/\s+/g, '');
@@ -106,6 +100,7 @@ const server = net.createServer((socket) => {
           // First check for colon (system separator)
           const colonPos = name.indexOf(':');
           let nameWithoutSystem = colonPos > 0 ? name.substring(colonPos + 1) : name;
+          //make it possible to add more systems
           model.sys.add(name.substring(0, colonPos + 1))
           
           // Then check for dot (DP/DPE separator)
@@ -122,52 +117,31 @@ const server = net.createServer((socket) => {
           model.dps.add(dp);
 
           if (dpe) {
-            if (!model.dpes.has(dp)) model.dpes.set(dp, new Set());
+            const type = mgr.dpElementType(`${dp}.${dpe}`);
+            var typeName = "";
+            if (type) typeName = WinccoaElementType[type] as string;
+            if (!model.dpes.has(dp)) model.dpes.set(dp, new Map());
             const set = model.dpes.get(dp)!;
-            set.add(dpe);
+            set.set(dpe, typeName);
           }
         }
       }
       
       console.log('Index built - DPs:', model.dps.size, 'Total DPEs:', Array.from(model.dpes.values()).reduce((sum, set) => sum + set.size, 0));
-
-      // Live updates to keep the index fresh
-      // TODO: check if a system-event for DpIdentification isn't better here to avoid a huge query-connect
-      // DONE? -> realized with WinccoaSysConEvent
-      // try {
-        // mgr.dpQueryConnectSingle(
-          // (values: unknown[][], _type: number, _error?: any) => {
-            // if (Array.isArray(values)) {
-              // for (let i = 1; i < values.length; i++) {
-              //   const name = String(values[i][0] ?? '').replace(/\s+/g, '');
-              //   if (!name) continue;
-              //   const dp = name.endsWith('.') ? name.slice(0, -1) : name;
-              //   model.dps.add(dp);
-              //   if (!model.dpes.has(dp)) model.dpes.set(dp, new Set(['_original.._value','_online.._value']));
-              // }
-            // }
-          // },
-          // true,
-          // query
-        // );
-      // } catch (e) {
-        // non-fatal for starter
-        // console.error('dpQueryConnectSingle failed: ' + e);
-      // }
     } catch (e) {
-      connection.console.error('dpQuery failed: ' + e);
+      console.error('dpQuery failed: ' + e);
     }
 
     //DONE? TODO: build index for CNS tree (mind format of sys.view:tree => if first dot comes before colon, then it's CNS)
-    // TODO group it like dps
+    //DONE? TODO group it like dps
     const sysname = mgr.getSystemName();
     const views = mgr.cnsGetViews(sysname.replace(':', '')); //replace the ":" after systemname for cns views
-    console.log("Views: " + views);
+    // console.log("Views: " + views);
     for (const view of views)
     {
-      model.sys.add(view);
+      model.views.add(view);
       const trees = await mgr.cnsGetTrees(view);
-      console.log('Trees:', trees);
+      // console.log('Trees:', trees);
       for (const tree of trees) {
         await traverseTree(mgr, tree, model, view);
       }
@@ -176,7 +150,6 @@ const server = net.createServer((socket) => {
   }
 
   connection.onInitialize(async (params: InitializeParams) => {
-      console.error('onInitialize called');
       const opts = (params.initializationOptions as any) || {};
       initQuery = typeof opts.query === 'string' && opts.query.trim() ? opts.query : initQuery;
       const letters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
@@ -184,7 +157,7 @@ const server = net.createServer((socket) => {
         capabilities: {
           textDocumentSync: 1,
           completionProvider: {
-            triggerCharacters: ['.', ':', '_', "\"", "'", "´"] //, ...letters
+            triggerCharacters: ['.', ':', '_', "\"", "'", "´", ...letters] //, ...letters
           },
           hoverProvider: true
         }
@@ -193,7 +166,7 @@ const server = net.createServer((socket) => {
       // Build index
       const winccoa = requireWinccoaSafe();
       await buildIndexFromWinccoa(winccoa, initQuery);
-      console.error('Returning InitializeResult');
+      console.error('Client ');
       return result;
   });
   // IMPORTANT: wait until initialization completes
@@ -243,13 +216,62 @@ const server = net.createServer((socket) => {
       end: _pos.position
     });
     //watch if a cns or dp function is written
-    const match = lineText.match(/\.(?:[A-Za-z0-9_]*?(?:cns|dp)[A-Za-z0-9_]*)\(\s*["'´]([^"'´]*)$/im);
-    console.log('Searching for:', match);
-    if (match) {
-      const dpObject = match[1];
-      console.log("Search string for autocomplete:", dpObject);
+    //TODO seperate cns and dp gets
+    const matchCns = lineText.match(/\.(?:[A-Za-z0-9_]*?(?:cns)[A-Za-z0-9_]*)\(\s*["'´]([^"'´]*)$/im);
+    console.log('Searching for:', matchCns);
+    if (matchCns) {
+      const dpObject = matchCns[1];
+      console.log("Search string for CNS autocomplete:", dpObject);
 
       //looks like not containing a system name?
+      //here you go
+      if (!(dpObject.indexOf(':') > 0))
+      {
+        console.log('Available Systems:', Array.from(model.views));
+        const matchingViews = Array.from(model.views).filter(sys => sys.startsWith(dpObject));
+        for (const view of matchingViews) {
+         console.log("push " + view + " in context menu");
+         items.push({
+           label: view,
+           kind: CompletionItemKind.Variable,
+           insertText: removeBasePrefix(dpObject, view),
+         });
+        }
+        return items;
+      }
+
+      const looksLikeCns = dpObject.match(/^([A-Za-z0-9_]+\.[A-Za-z0-9_]+:)([A-Za-z0-9_\.]+)?$/i);
+      console.log('lookslikeCNS match result:', looksLikeCns);
+      if (looksLikeCns && model.cns.has(looksLikeCns[1])){
+        const cnsSystem = looksLikeCns[1];
+        //set von map<string, string>
+        const map = model.cns.get(cnsSystem);
+        console.log('For looksLikeCns available CNS:', map ? Array.from(map.keys()) : 'none');
+        if (map) {
+          var matchingCns = Array.from(map.keys()).filter(chrildren => chrildren.startsWith(looksLikeCns[2]));
+          if (matchingCns.length <= 0) matchingCns = Array.from(map.keys());
+          for (const cns of matchingCns) {
+             var e = cns;
+             if (looksLikeCns[2]?.indexOf(".") > 0) e = e.substring(looksLikeCns[2].lastIndexOf(".") +1);
+               console.log("push " + e + " in context menu");
+               items.push({
+                 label: e,
+                 kind: CompletionItemKind.Variable,
+                 insertText: removeBasePrefix(dpObject, e),
+                 detail: map.get(cns)
+               });
+          }
+        }
+        return items;
+      }
+    }
+
+    const matchDp = lineText.match(/\.(?:[A-Za-z0-9_]*?(?:dp)[A-Za-z0-9_]*)\(\s*["'´]([^"'´]*)$/im);
+    if (matchDp) {
+      const dpObject = matchDp[1];
+      console.log("Search string for DP autocomplete:", dpObject);
+      //looks like not containing a system name?
+      //here you go
       if (!(dpObject.indexOf(':') > 0))
       {
         console.log('Available Systems:', Array.from(model.sys));
@@ -262,56 +284,65 @@ const server = net.createServer((socket) => {
            insertText: removeBasePrefix(dpObject, sys),
          });
         }
+        return items;
       }
 
-      // check if system name look like cns
-      const looksLikeCns = dpObject.match(/^([A-Za-z0-9_]+\.[A-Za-z0-9_]+:)([A-Za-z0-9_\.]+)?$/i);
-      console.log('lookslikeCNS match result:', looksLikeCns);
-      if (looksLikeCns && model.cns.has(looksLikeCns[1])){
-        const cnsSystem = looksLikeCns[1];
-        const set = model.cns.get(cnsSystem)
-        console.log('For looksLikeCns available CNS:', set ? Array.from(set) : 'none');
-        if (set) {
-          const matchingCns = Array.from(set).filter(chrildren => chrildren.startsWith(looksLikeCns[2]));
-          for (const cns of matchingCns) {
-           var e = cns;
-           if (looksLikeCns[2].indexOf(".") > 0) e = e.substring(looksLikeCns[2].lastIndexOf(".") +1 )
-           console.log("push " + e + " in context menu");
-           items.push({
-             label: e,
-             kind: CompletionItemKind.Variable,
-             insertText: removeBasePrefix(dpObject, e),
-           });
+      const lookingForConfig = dpObject.match(/^([A-Za-z0-9]+:)([A-Za-z0-9_.]+:)([A-Za-z0-9_]+)?$/i);
+      console.log('Looking for configs:', lookingForConfig);
+      if (lookingForConfig) {
+        const systemName = lookingForConfig[0];
+        const dpName = lookingForConfig[1]
+        console.log('My System: ', systemName);
+        console.log('My DP: ', dpName);
+        for (const key of dpConfigAttributes.keys()) {
+          console.log('Key:', key);
+          items.push({ 
+            label: key, 
+            kind: CompletionItemKind.Field,
+            insertText: key // Only insert the remaining part
+          });
+        }
+        return items;
+      }
+
+      const lookingForSubConfig = dpObject.match(/^([A-Za-z0-9]+:)([A-Za-z0-9_.]+:)([A-Za-z0-9_]+\.\.)(.*)$/i);
+      console.log('Looking for sub:', lookingForSubConfig);
+      if (lookingForSubConfig) {
+        const systemName = lookingForSubConfig[1];
+        const dpName = lookingForSubConfig[2];
+        const configs = lookingForSubConfig[3] ?? "";
+        console.log('My System: ', systemName);
+        console.log('My DP: ', dpName);
+        console.log('My config: ', configs);
+        const subConfs = dpConfigAttributes.get(configs.replace(/\./gi, ""));
+        if (subConfs) {
+          console.log('My subconfigs: ', Array.from(subConfs));
+          for (const key of subConfs) {
+            console.log('Key:', key);
+            items.push({ 
+              label: key, 
+              kind: CompletionItemKind.Field,
+              insertText: key // Only insert the remaining part
+            });
           }
         }
+        return items;
       }
-      // if (!dpObject) {
-        // // initial dp list
-        // const matchingDps = Array.from(model.dps).filter(dp => dp.startsWith(dpObject));
-        // for (const dp of matchingDps) {
-              // items.push({ 
-                // label: dp, 
-                // kind: CompletionItemKind.Variable,
-                // insertText: removeBasePrefix(dpObject, dp) // Only insert the remaining part
-              // });
-        // }
-      // }
 
       // Parse the current typing context for DpIdentification syntax
-      const matchdp = dpObject.match(/^([A-Za-z0-9]+(?::[A-Za-z0-9_]*)?)([\.A-Za-z0-9_]+?)?$/i); // old /^([A-Za-z_][\w\d]*(?::[A-Za-z_][\w]*)?)(\..*)?$/i
+      const matchdp = dpObject.match(/^([A-Za-z0-9]+(?::[A-Za-z0-9_]*)?)([\.A-Za-z0-9_]+?)?$/i);
       console.log('Regex match result:', matchdp);
       if (matchdp) {
-        const typedDp = matchdp[1].indexOf(":") > 0 ? matchdp[1].substring( matchdp[1].indexOf(":")+ 1):matchdp[1];
+        const typedDp = matchdp[1].indexOf(":") > 0 ? matchdp[1].substring( matchdp[1].indexOf(":")+ 1):matchdp[1]; //remove the system1: part
         const typedDpe = matchdp[2];
 
-        console.log('Typed DP:', typedDp, 'Typed DPE:', typedDpe);
+        console.log('Typed DP:', typedDp, 'Typed DPE:', typedDpe, 'Get Type' );
 
-        //if (typedDp) lookslike cns -> get children
-        
         // Check if we have an exact DP match and a dot (suggesting DPE completion)
         if (typedDpe && model.dps.has(typedDp)) {
           // Complete DPE names for the exact DP
-          const elements = model.dpes.get(typedDp);
+          const map = model.dpes.get(typedDp)!;
+          const elements = Array.from(map.keys());
           console.log('Found elements for exact DP', typedDp, ':', elements ? Array.from(elements) : 'none');
           
           if (elements) {
@@ -320,13 +351,11 @@ const server = net.createServer((socket) => {
               if (e.startsWith(dpePrefix)) { 
                 var b = e;
                 if (dpePrefix.lastIndexOf(".") > 0) {b = e.substring(1).substring(dpePrefix.lastIndexOf(".")) }
-                console.log("new dpe " + b);
-                //System1:_AlertDataSet.List.
-                // new dpe .StartTimes
                 items.push({ 
                   label: b, 
                   kind: CompletionItemKind.Field,
-                  insertText: removeBasePrefix(dpObject, b) // Only insert the remaining part
+                  insertText: removeBasePrefix(dpObject, b), // Only insert the remaining part
+                  detail: map.get(e)
                 });
               }
             }
@@ -337,12 +366,13 @@ const server = net.createServer((socket) => {
           
           // First try exact match (for when typing DPE after complete DP name)
           if (model.dps.has(typedDp)) {
-            const elements = model.dpes.get(typedDp);
+            const map = model.dpes.get(typedDp)!;
+            const elements = Array.from(map.keys());
             console.log('Found elements for exact DP', typedDp, ':', elements ? Array.from(elements) : 'none');
-            
+
             if (elements) {
               for (const e of elements) {
-                items.push({ label: e, kind: CompletionItemKind.Field });
+                items.push({ label: e, kind: CompletionItemKind.Field, detail: map.get(e) });
               }
             }
           } else {
@@ -357,22 +387,6 @@ const server = net.createServer((socket) => {
                 insertText: removeBasePrefix(dpObject, dp) // Only insert the remaining part
               });
               
-              // Also add some common DPE elements for each matching DP
-              // const elements = model.dpes.get(dp);
-              // if (elements) {
-                // console.log('Found elements ', elements);
-                //Add a few common elements to give users a preview
-                // const commonElements = Array.from(elements).slice(0, 5);
-                // for (const e of commonElements) {
-                  // console.log(`add element to list ${dp} replace with ${dpObject} then .${e}`)
-                  // items.push({ 
-                    // label: `${dp}.${e}`, 
-                    // kind: CompletionItemKind.Field,
-                    // insertText: `${dp.replace(dpObject, "")}.${e}`,
-                    // detail: `${dp} element`
-                  // });
-                // }
-              // }
             }
           }
         }
@@ -396,12 +410,12 @@ const server = net.createServer((socket) => {
     if (!wordMatch) return undefined;
     const dp = wordMatch[1];
     const rest = wordMatch[2];
-
     // TODO: provide tooltip for correct context: DP description for DPEs, documented help for Config/Attr, Display name for CNS path, full path for cat/ctl files
     if (model.dps.has(dp)) {
       if (rest) {
         const elements = model.dpes.get(dp);
         if (elements && elements.has(rest)) {
+          //dpGet(`${dp}.${rest}`) //todo add value in description
           return {
             contents: {
               kind: MarkupKind.Markdown,
@@ -431,7 +445,7 @@ const server = net.createServer((socket) => {
     } catch {}
   };
   // TODO: allow reconnecting clients so that server remains running instead of shutting down on editor close
-  // for now done with node server on always, if server stop, client reconnect during runtime
+  // DONE? for now done with node server on always, if server stop, client reconnect during runtime
   socket.on('error', () => close());
   socket.on('close', () => close());
   socket.on('end', () => close());
@@ -444,6 +458,11 @@ const server = net.createServer((socket) => {
   //  console.error('[Child] stdin ended, exiting');
   //  process.exit(0);
   // });
+  function dpGet(dp: string){
+    const winccoa = requireWinccoaSafe();
+    const mgr = new winccoa.WinccoaManager();
+    mgr.dpGet()
+  }
 });
 
 server.on('error', (err) => {
@@ -457,15 +476,14 @@ server.listen(PORT, HOST, () => {
 
 async function traverseTree(mgr: any, node: string, model: ModelIndex, view: string): Promise<void> {
   const children = await mgr.cnsGetChildren(node);
-  console.log(`Children of ${node}:`, children);
-  // If there are NO children, this is a leaf node
-  //    if (children.length === 0) {
-  //model.cns.add(node.replace(view, ""));
-  if (!model.cns.has(view)) model.cns.set(view, new Set());
+  // console.log(`Children of ${node}:`, children);
+  if (!model.cns.has(view)) model.cns.set(view, new Map());
 
+  // Map<nodeName, dislpayName>
   const set = model.cns.get(view)!;
-  set.add(node.replace(view, ""));
-  console.log(`Added child in line: ${node.replace(view, "")} in view ${view}`);
+  const displayName = mgr.cnsGetDisplayNames(node);
+  set.set(node.replace(view, ""), displayName);
+  // console.log(`Added child in line: ${node.replace(view, "")} in view ${view}`);
   
   for (const child of children) {
     await traverseTree(mgr, child, model, view);
@@ -489,6 +507,8 @@ function removeBasePrefix(base: string, target: string, separators: string[] = [
   // Remove the prefix from the target (if it starts with it)
   return target.startsWith(prefix) ? target.substring(prefix.length) : target;
 }
+
+
 // } else {
 //   // ----------------------
 //   // MAIN TCP SERVER
