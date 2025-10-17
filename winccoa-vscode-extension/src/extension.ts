@@ -12,8 +12,8 @@ let client: LanguageClient | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
   //const host = '127.0.0.1';
-  //const port = 2087;
-  const output = vscode.window.createOutputChannel('MyExt Debug');
+  //const port = 2087; 
+  const output = vscode.window.createOutputChannel('winccoa-oa-lsp-client');
   output.show(true);
   output.appendLine('[MyExt] Extension activated.');
   const extensionContext = vscode.workspace.getConfiguration('winccoaLsp');
