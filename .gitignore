@@ -1,3 +1,10 @@
 **/node_modules
 *-lock.json
 *.js
+out/
+dist/
+.vscode-test/
+*.vsix
+*.log
+.DS_Store
+*.lock

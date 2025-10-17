@@ -1,0 +1,67 @@
+{
+  "name": "winccoa-oa-lsp-client",
+  "displayName": "WinCC OA Data Model LSP (Starter)",
+  "description": "Starter VS Code extension with an LSP server that provides IntelliSense for a WinCC OA data model. Uses winccoa-manager when available; otherwise falls back to an offline sample.",
+  "version": "0.0.1",
+  "publisher": "etm",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": ["Programming Languages"],
+  "activationEvents": [
+    "onLanguage:javascript",
+    "onLanguage:typescript",
+    "onCommand:winccoaLsp.reloadIndex"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "winccoaLsp.reloadIndex",
+        "title": "WinCC OA LSP: Reload Index"
+      }
+    ],
+    "configuration": {
+      "configurationDefaults": {
+        "[javascript][typescript]": {
+          "editor.wordWrap": "on",
+          "editor.quickSuggestions": {
+            "strings": "on"
+          }
+        }
+      },
+      "type": "object",
+      "title": "WinCC OA LSP",
+      "properties": {
+        "winccoaLsp.apiUrl": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Base URL of the API used by this extension."
+        },
+        "winccoaLsp.port": {
+          "type": "integer",
+          "default": 2087,
+          "description": "Port"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.1",
+    "vscode-jsonrpc": "^8.2.1",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.11",
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.0",
+    "typescript": "^5.4.0",
+    "@types/winccoa-manager": "C:/Program Files/Siemens/WinCC_OA/3.21/javascript/@types/winccoa-manager",
+    "vscode": "^1.1.34"
+  }
+}

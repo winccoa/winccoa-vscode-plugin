@@ -1,0 +1,58 @@
+{
+  "name": "winccoa-oa-lsp-client",
+  "displayName": "WinCC OA Data Model LSP (Starter)",
+  "description": "Starter VS Code extension with an LSP server that provides IntelliSense for a WinCC OA data model. Uses winccoa-manager when available; otherwise falls back to an offline sample.",
+  "version": "0.0.1",
+  "publisher": "etm",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": ["Programming Languages"],
+  "activationEvents": [
+    "onLanguage:javascript",
+    "onLanguage:typescript",
+    "onCommand:winccoaLsp.reloadIndex"
+  ],
+  "main": "./winccoa-vscode-extension/out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "winccoaLsp.reloadIndex",
+        "title": "WinCC OA LSP: Reload Index"
+      }
+    ],
+    "configuration": {
+      "configurationDefaults": {
+        "[javascript][typescript]": {
+          "editor.wordWrap": "on",
+          "editor.quickSuggestions": {
+            "strings": "on"
+          }
+        }
+      },
+      "type": "object",
+      "title": "WinCC OA LSP",
+      "properties": {
+        "winccoaLsp.apiUrl": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Base URL of the API used by this extension."
+        },
+        "winccoaLsp.port": {
+          "type": "integer",
+          "default": 2087,
+          "description": "Port"
+        }
+      }
+    }
+  },
+  "workspaces": [
+    "winccoa-vscode-extension",
+    "winccoa-languageserver"
+  ],
+  "scripts": {
+    "compile": "npm run compile --workspace=winccoa-vscode-extension && npm run compile --workspace=winccoa-languageserver",
+    "watch": "npm run watch --workspace=winccoa-languageserver & npm run watch --workspace=winccoa-languageserver",
+    "package": "vsce package --baseContentUrl '' --baseImagesUrl '' -o winccoa-oa-lsp-starter.vsix"
+  }
+}

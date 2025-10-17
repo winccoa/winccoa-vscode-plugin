@@ -1,0 +1,55 @@
+# -----------------------
+# EXCLUDE: build artifacts & system files
+# -----------------------
+**/.DS_Store
+**/Thumbs.db
+**/*.log
+**/*.ts
+**/*.map
+**/*.bak
+**/*.tmp
+
+# -----------------------
+# EXCLUDE: Git & CI metadata
+# -----------------------
+.git/**
+.gitignore
+.gitattributes
+.github/**
+.gitlab-ci.yml
+.vscode/**
+.vscode-test/**
+.vscode-insiders/**
+
+# -----------------------
+# EXCLUDE: Node & build dependencies (root-level)
+# -----------------------
+node_modules/**
+npm-debug.log
+yarn.lock
+package-lock.json
+
+# -----------------------
+# EXCLUDE: test & docs
+# -----------------------
+**/test/**
+**/tests/**
+**/__tests__/**
+**/coverage/**
+docs/**
+README.md
+
+# -----------------------
+# KEEP: the extension runtime (dist JS)
+# -----------------------
+!client/dist/**
+!server/dist/**
+
+# -----------------------
+# KEEP: manifests & metadata
+# -----------------------
+!package.json
+!package-lock.json
+!README.md
+!LICENSE
+!CHANGELOG.md
