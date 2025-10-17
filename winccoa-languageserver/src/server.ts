@@ -210,7 +210,7 @@ const server = net.createServer((socket) => {
     const offset = doc.offsetAt(_pos.position);
     const start = Math.max(0, offset - 128);
     const context = text.slice(start, offset);
-    console.log('Completion context:', JSON.stringify(context));
+    // console.log('Completion context:', JSON.stringify(context));
     
     const lineText = doc.getText({
       start: { line: _pos.position.line, character: 0 },
@@ -304,7 +304,7 @@ const server = net.createServer((socket) => {
         return items;
       }
 
-      const lookingForSubConfig = dpObject.match(/^([A-Za-z0-9]+:)([A-Za-z0-9_.]+:)([A-Za-z0-9_]+\.\.)(.*)$/i);
+      const lookingForSubConfig = dpObject.match(/^([A-Za-z0-9]+:)([A-Za-z0-9_.]+:)([A-Za-z0-9_]+\.\.)([A-Za-z0-9_]+)?$/i);
       // console.log('Looking for sub:', lookingForSubConfig);
       if (lookingForSubConfig) {
         const systemName = lookingForSubConfig[1];
@@ -327,7 +327,7 @@ const server = net.createServer((socket) => {
 
       // Parse the current typing context for DpIdentification syntax
       const matchdp = dpObject.match(/^([A-Za-z0-9]+(?::[A-Za-z0-9_]*)?)([\.A-Za-z0-9_]+?)?$/i);
-      console.log('Regex match result:', matchdp);
+      // console.log('Regex match result:', matchdp);
       if (matchdp) {
         const typedDp = matchdp[1].indexOf(":") > 0 ? matchdp[1].substring( matchdp[1].indexOf(":")+ 1):matchdp[1]; //remove the system1: part
         const typedDpe = matchdp[2];
@@ -339,7 +339,7 @@ const server = net.createServer((socket) => {
           // Complete DPE names for the exact DP
           const map = model.dpes.get(typedDp)!;
           const elements = Array.from(map.keys());
-          console.log('Found elements for exact DP', typedDp, ':', elements ? Array.from(elements) : 'none');
+          // console.log('Found elements for exact DP', typedDp, ':', elements ? Array.from(elements) : 'none');
           
           if (elements) {
             const dpePrefix = typedDpe.substring(1); // Remove the leading dot 

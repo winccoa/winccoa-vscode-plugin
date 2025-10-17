@@ -1,8 +1,62 @@
 {
-  "name": "winccoa-oa-lsp-starter",
-  "private": true,
+  "name": "winccoa-oa-lsp-client",
+  "displayName": "WinCC OA Data Model LSP (Starter)",
+  "description": "Starter VS Code extension with an LSP server that provides IntelliSense for a WinCC OA data model. Uses winccoa-manager when available; otherwise falls back to an offline sample.",
+  "version": "0.0.1",
+  "publisher": "etm",
   "engines": {
     "vscode": "^1.95.0"
+  },
+  "categories": ["Programming Languages"],
+  "activationEvents": [
+    "onLanguage:javascript",
+    "onLanguage:typescript",
+    "onCommand:winccoaLsp.reloadIndex"
+  ],
+  "main": "./winccoa-vscode-extension/out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "winccoaLsp.reloadIndex",
+        "title": "WinCC OA LSP: Reload Index"
+      }
+    ],
+    "configuration": {
+      "configurationDefaults": {
+        "[javascript]": {
+          "editor.quickSuggestions": {
+            "other": true,
+            "comments": false,
+            "strings": true
+          }
+        },
+        "[typescript]": {
+          "editor.quickSuggestions": {
+            "other": true,
+            "comments": false,
+            "strings": true
+          }
+        }
+      },
+      "type": "object",
+      "title": "WinCC OA LSP",
+      "properties": {
+        "winccoaLsp.mode": {
+          "default": "auto",
+          "description": "auto: try to use winccoa-manager, fallback to offline sample; offline: always use sample."
+        },
+        "winccoaLsp.apiUrl": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Base URL of the API used by this extension."
+        },
+        "winccoaLsp.port": {
+          "type": "integer",
+          "default": 2087,
+          "description": "Port"
+        }
+      }
+    }
   },
   "workspaces": [
     "winccoa-vscode-extension",
