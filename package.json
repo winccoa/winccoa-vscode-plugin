@@ -41,10 +41,6 @@
       "type": "object",
       "title": "WinCC OA LSP",
       "properties": {
-        "winccoaLsp.mode": {
-          "default": "auto",
-          "description": "auto: try to use winccoa-manager, fallback to offline sample; offline: always use sample."
-        },
         "winccoaLsp.apiUrl": {
           "type": "string",
           "default": "127.0.0.1",
