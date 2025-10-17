@@ -4,6 +4,10 @@
   "description": "Starter VS Code extension with an LSP server that provides IntelliSense for a WinCC OA data model. Uses winccoa-manager when available; otherwise falls back to an offline sample.",
   "version": "0.0.1",
   "publisher": "etm",
+  "author": "ETM professional control",
+  "keywords": [
+    "WinCCOA"
+  ],
   "engines": {
     "vscode": "^1.95.0"
   },

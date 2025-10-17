@@ -15,7 +15,7 @@ export function activate(context: vscode.ExtensionContext) {
   //const port = 2087; 
   const output = vscode.window.createOutputChannel('winccoa-oa-lsp-client');
   output.show(true);
-  output.appendLine('[MyExt] Extension activated.');
+  output.appendLine('[WCCOA LSP] Extension activated.');
   const extensionContext = vscode.workspace.getConfiguration('winccoaLsp');
   const host = extensionContext.get<string>('apiUrl') ?? '127.0.0.1';;
   const port = extensionContext.get<number>('port') ?? 2087;
@@ -38,16 +38,16 @@ export function activate(context: vscode.ExtensionContext) {
 
   client = new LanguageClient('winccoaLsp', 'WinCC OA LSP (Starter)', serverOptions, clientOptions);
   client.onDidChangeState((event) => {
-    const stateMsg = `[MyExt] State changed: ${State[event.oldState]} → ${State[event.newState]}`;
+    const stateMsg = `[WCCOA LSP] State changed: ${State[event.oldState]} → ${State[event.newState]}`;
     console.log(stateMsg);
     output.appendLine(stateMsg);
 
     if (event.newState === State.Stopped) {
-      output.appendLine('[MyExt] Language server stopped — attempting delayed restart...');
+      output.appendLine('[WCCOA LSP] Language server stopped — attempting delayed restart...');
       setTimeout(() => {
         startClientWithRetry(client!, output)
-          .then(() => output.appendLine('[MyExt] Restart successful!'))
-          .catch(err => output.appendLine(`[MyExt] Restart failed: ${err}`));
+          .then(() => output.appendLine('[WCCOA LSP] Restart successful!'))
+          .catch(err => output.appendLine(`[WCCOA LSP] Restart failed: ${err}`));
       }, 5000); // wait 2 s before retrying
     }
   });
@@ -68,20 +68,20 @@ async function startClientWithRetry(client: LanguageClient, output: vscode.Outpu
   let attempt = 0;
   while (attempt < maxRetries) {
     try {
-      output.appendLine(`[MyExt] Starting language client (attempt ${attempt + 1})...`);
-      console.log(`[MyExt] Starting language client (attempt ${attempt + 1})...`);
+      output.appendLine(`[WCCOA LSP] Starting language client (attempt ${attempt + 1})...`);
+      console.log(`[WCCOA LSP] Starting language client (attempt ${attempt + 1})...`);
       const disposable = client.start();
-      output.appendLine('[MyExt] Language client started successfully!');
+      output.appendLine('[WCCOA LSP] Language client started successfully!');
       return disposable;
     } catch (err) {
       attempt++;
       const delay = 1000 * attempt; // exponential backoff
-      output.appendLine(`[MyExt] Failed to start (attempt ${attempt}), retrying in ${delay}ms: ${err}`);
+      output.appendLine(`[WCCOA LSP] Failed to start (attempt ${attempt}), retrying in ${delay}ms: ${err}`);
       await new Promise(res => setTimeout(res, delay));
     }
   }
 
-  output.appendLine('[MyExt] Failed to start language client after max retries.');
+  output.appendLine('[WCCOA LSP] Failed to start language client after max retries.');
   throw new Error('Language client could not be started.');
 }
 

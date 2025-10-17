@@ -101,7 +101,7 @@ const server = net.createServer((socket) => {
           const colonPos = name.indexOf(':');
           let nameWithoutSystem = colonPos > 0 ? name.substring(colonPos + 1) : name;
           //make it possible to add more systems
-          model.sys.add(name.substring(0, colonPos + 1))
+          model.sys.add(name.substring(0, colonPos))
           
           // Then check for dot (DP/DPE separator)
           const dotPos = nameWithoutSystem.indexOf('.');
@@ -139,7 +139,7 @@ const server = net.createServer((socket) => {
     // console.log("Views: " + views);
     for (const view of views)
     {
-      model.views.add(view);
+      model.views.add(view.replace(':', ''));
       const trees = await mgr.cnsGetTrees(view);
       // console.log('Trees:', trees);
       for (const tree of trees) {
@@ -157,7 +157,7 @@ const server = net.createServer((socket) => {
         capabilities: {
           textDocumentSync: 1,
           completionProvider: {
-            triggerCharacters: ['.', ':', '_', "\"", "'", "´", ...letters] //, ...letters
+            triggerCharacters: ['.', ':', '_', "\"", "'", "´"] //, ...letters
           },
           hoverProvider: true
         }
@@ -222,7 +222,7 @@ const server = net.createServer((socket) => {
     // console.log('Searching for:', matchCns);
     if (matchCns) {
       const dpObject = matchCns[1];
-      // console.log("Search string for CNS autocomplete:", dpObject);
+      console.log("Search string for CNS autocomplete:", dpObject);
 
       //looks like not containing a system name? - here you go
       if (!(dpObject.indexOf(':') > 0))
@@ -241,19 +241,19 @@ const server = net.createServer((socket) => {
       }
 
       const looksLikeCns = dpObject.match(/^([A-Za-z0-9_]+\.[A-Za-z0-9_]+:)([A-Za-z0-9_\.]+)?$/i);
-      // console.log('lookslikeCNS match result:', looksLikeCns);
+      console.log('lookslikeCNS match result:', looksLikeCns);
       if (looksLikeCns && model.cns.has(looksLikeCns[1])){
         const cnsSystem = looksLikeCns[1];
         //set von map<string, string>
         const map = model.cns.get(cnsSystem);
-        // console.log('For looksLikeCns available CNS:', map ? Array.from(map.keys()) : 'none');
+        console.log('For looksLikeCns available CNS:', map ? Array.from(map.keys()) : 'none');
         if (map) {
-          var matchingCns = Array.from(map.keys()).filter(chrildren => chrildren.startsWith(looksLikeCns[2]));
-          if (matchingCns.length <= 0) matchingCns = Array.from(map.keys());
+          var matchingCns = Array.from(map.keys()).filter(chrildren => chrildren.startsWith(looksLikeCns[2] ?? ""));
+          //if (matchingCns.length <= 0) matchingCns = Array.from(map.keys());
           for (const cns of matchingCns) {
              var e = cns;
              if (looksLikeCns[2]?.indexOf(".") > 0) e = e.substring(looksLikeCns[2].lastIndexOf(".") +1);
-              //  console.log("push " + e + " in context menu");
+              console.log("push " + e + " in context menu");
                items.push({
                  label: e,
                  kind: CompletionItemKind.Variable,
@@ -294,7 +294,7 @@ const server = net.createServer((socket) => {
         const dpName = lookingForConfig[1]
         for (const key of dpConfigAttributes.keys()) {
               //  console.log("push " + key + " in context menu");
-          console.log('Key:', key);
+          // console.log('Key:', key);
           items.push({ 
             label: key, 
             kind: CompletionItemKind.Field,
