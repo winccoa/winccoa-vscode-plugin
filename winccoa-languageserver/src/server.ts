@@ -69,10 +69,10 @@ const server = net.createServer((socket) => {
         // If not available, this will throw.
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const winccoa = require('winccoa-manager');
-        console.log('Successfully loaded winccoa-manager');
+        // console.log('Successfully loaded winccoa-manager');
         return winccoa;
       } catch (_e) {
-        console.log('Failed to load winccoa-manager:', _e);
+        console.error('Failed to load winccoa-manager:', _e);
         return undefined;
       }
   }
@@ -166,23 +166,24 @@ const server = net.createServer((socket) => {
       // Build index
       const winccoa = requireWinccoaSafe();
       await buildIndexFromWinccoa(winccoa, initQuery);
-      console.error('Client ');
+      console.log('Client Initialized');
       return result;
   });
   // IMPORTANT: wait until initialization completes
 
-  connection.onInitialized(() => {
-   console.log('[Child] Connection initialized, attaching DB listener');
-  
+  connection.onInitialized(() => {  
    // Attach your project-specific DB listener here
    // This function will be called whenever the DB changes
    const winccoa = requireWinccoaSafe();
    const mgr = new winccoa.WinccoaManager();
    mgr.sysConnect.on(winccoa.WinccoaSysConEvent.DpCreated, dpCreatedListener);
+   mgr.sysConnect.on(winccoa.WinccoaSysConEvent.DpDeleted, dpCreatedListener);
+   mgr.sysConnect.on(winccoa.WinccoaSysConEvent.DpTypeChanged, dpCreatedListener);
+   mgr.sysConnect.on(winccoa.WinccoaSysConEvent.DpRenamed, dpCreatedListener);
   });
 
   function dpCreatedListener(details: WinccoaSysConDpDetails) {
-    console.log('DP created - details:');
+    // console.log('DP created - details:');
     console.log(details);
     const winccoa = requireWinccoaSafe();
     buildIndexFromWinccoa(winccoa, initQuery);
@@ -218,19 +219,18 @@ const server = net.createServer((socket) => {
     //watch if a cns or dp function is written
     //TODO seperate cns and dp gets
     const matchCns = lineText.match(/\.(?:[A-Za-z0-9_]*?(?:cns)[A-Za-z0-9_]*)\(\s*["'´]([^"'´]*)$/im);
-    console.log('Searching for:', matchCns);
+    // console.log('Searching for:', matchCns);
     if (matchCns) {
       const dpObject = matchCns[1];
-      console.log("Search string for CNS autocomplete:", dpObject);
+      // console.log("Search string for CNS autocomplete:", dpObject);
 
-      //looks like not containing a system name?
-      //here you go
+      //looks like not containing a system name? - here you go
       if (!(dpObject.indexOf(':') > 0))
       {
         console.log('Available Systems:', Array.from(model.views));
         const matchingViews = Array.from(model.views).filter(sys => sys.startsWith(dpObject));
         for (const view of matchingViews) {
-         console.log("push " + view + " in context menu");
+        //  console.log("push " + view + " in context menu");
          items.push({
            label: view,
            kind: CompletionItemKind.Variable,
@@ -241,19 +241,19 @@ const server = net.createServer((socket) => {
       }
 
       const looksLikeCns = dpObject.match(/^([A-Za-z0-9_]+\.[A-Za-z0-9_]+:)([A-Za-z0-9_\.]+)?$/i);
-      console.log('lookslikeCNS match result:', looksLikeCns);
+      // console.log('lookslikeCNS match result:', looksLikeCns);
       if (looksLikeCns && model.cns.has(looksLikeCns[1])){
         const cnsSystem = looksLikeCns[1];
         //set von map<string, string>
         const map = model.cns.get(cnsSystem);
-        console.log('For looksLikeCns available CNS:', map ? Array.from(map.keys()) : 'none');
+        // console.log('For looksLikeCns available CNS:', map ? Array.from(map.keys()) : 'none');
         if (map) {
           var matchingCns = Array.from(map.keys()).filter(chrildren => chrildren.startsWith(looksLikeCns[2]));
           if (matchingCns.length <= 0) matchingCns = Array.from(map.keys());
           for (const cns of matchingCns) {
              var e = cns;
              if (looksLikeCns[2]?.indexOf(".") > 0) e = e.substring(looksLikeCns[2].lastIndexOf(".") +1);
-               console.log("push " + e + " in context menu");
+              //  console.log("push " + e + " in context menu");
                items.push({
                  label: e,
                  kind: CompletionItemKind.Variable,
@@ -269,15 +269,15 @@ const server = net.createServer((socket) => {
     const matchDp = lineText.match(/\.(?:[A-Za-z0-9_]*?(?:dp)[A-Za-z0-9_]*)\(\s*["'´]([^"'´]*)$/im);
     if (matchDp) {
       const dpObject = matchDp[1];
-      console.log("Search string for DP autocomplete:", dpObject);
+      // console.log("Search string for DP autocomplete:", dpObject);
       //looks like not containing a system name?
       //here you go
       if (!(dpObject.indexOf(':') > 0))
       {
-        console.log('Available Systems:', Array.from(model.sys));
+        // console.log('Available Systems:', Array.from(model.sys));
         const matchingSys = Array.from(model.sys).filter(sys => sys.startsWith(dpObject));
         for (const sys of matchingSys) {
-         console.log("push " + sys + " in context menu");
+        //  console.log("push " + sys + " in context menu");
          items.push({
            label: sys,
            kind: CompletionItemKind.Variable,
@@ -288,13 +288,12 @@ const server = net.createServer((socket) => {
       }
 
       const lookingForConfig = dpObject.match(/^([A-Za-z0-9]+:)([A-Za-z0-9_.]+:)([A-Za-z0-9_]+)?$/i);
-      console.log('Looking for configs:', lookingForConfig);
+      // console.log('Looking for configs:', lookingForConfig);
       if (lookingForConfig) {
         const systemName = lookingForConfig[0];
         const dpName = lookingForConfig[1]
-        console.log('My System: ', systemName);
-        console.log('My DP: ', dpName);
         for (const key of dpConfigAttributes.keys()) {
+              //  console.log("push " + key + " in context menu");
           console.log('Key:', key);
           items.push({ 
             label: key, 
@@ -306,19 +305,16 @@ const server = net.createServer((socket) => {
       }
 
       const lookingForSubConfig = dpObject.match(/^([A-Za-z0-9]+:)([A-Za-z0-9_.]+:)([A-Za-z0-9_]+\.\.)(.*)$/i);
-      console.log('Looking for sub:', lookingForSubConfig);
+      // console.log('Looking for sub:', lookingForSubConfig);
       if (lookingForSubConfig) {
         const systemName = lookingForSubConfig[1];
         const dpName = lookingForSubConfig[2];
         const configs = lookingForSubConfig[3] ?? "";
-        console.log('My System: ', systemName);
-        console.log('My DP: ', dpName);
-        console.log('My config: ', configs);
         const subConfs = dpConfigAttributes.get(configs.replace(/\./gi, ""));
         if (subConfs) {
-          console.log('My subconfigs: ', Array.from(subConfs));
+          // console.log('My subconfigs: ', Array.from(subConfs));
           for (const key of subConfs) {
-            console.log('Key:', key);
+            // console.log('Key:', key);
             items.push({ 
               label: key, 
               kind: CompletionItemKind.Field,
@@ -336,7 +332,7 @@ const server = net.createServer((socket) => {
         const typedDp = matchdp[1].indexOf(":") > 0 ? matchdp[1].substring( matchdp[1].indexOf(":")+ 1):matchdp[1]; //remove the system1: part
         const typedDpe = matchdp[2];
 
-        console.log('Typed DP:', typedDp, 'Typed DPE:', typedDpe, 'Get Type' );
+        // console.log('Typed DP:', typedDp, 'Typed DPE:', typedDpe, 'Get Type' );
 
         // Check if we have an exact DP match and a dot (suggesting DPE completion)
         if (typedDpe && model.dps.has(typedDp)) {
@@ -362,13 +358,13 @@ const server = net.createServer((socket) => {
           }
         } else {
           // Look for DP name matches (exact or prefix)
-          console.log('Looking for DP matches for:', typedDp, 'Available DPs:', Array.from(model.dps));
+          // console.log('Looking for DP matches for:', typedDp, 'Available DPs:', Array.from(model.dps));
           
           // First try exact match (for when typing DPE after complete DP name)
           if (model.dps.has(typedDp)) {
             const map = model.dpes.get(typedDp)!;
             const elements = Array.from(map.keys());
-            console.log('Found elements for exact DP', typedDp, ':', elements ? Array.from(elements) : 'none');
+            // console.log('Found elements for exact DP', typedDp, ':', elements ? Array.from(elements) : 'none');
 
             if (elements) {
               for (const e of elements) {
@@ -378,7 +374,7 @@ const server = net.createServer((socket) => {
           } else {
             // Try prefix matching for DP names
             const matchingDps = Array.from(model.dps).filter(dp => dp.startsWith(typedDp));
-            console.log('Found matching DPs by prefix:', matchingDps);
+            // console.log('Found matching DPs by prefix:', matchingDps);
             
             for (const dp of matchingDps) {
               items.push({ 
@@ -391,10 +387,8 @@ const server = net.createServer((socket) => {
           }
         }
       }
-    } else {
-      console.log('No regex match for completion context');
     }
-    console.log('Returning', items.length, 'completion items');
+    // console.log('Returning', items.length, 'completion items');
     return items;
   });
 
@@ -450,19 +444,6 @@ const server = net.createServer((socket) => {
   socket.on('close', () => close());
   socket.on('end', () => close());
   connection.listen();
-  //  for child server
-  //   
-  //  documents.listen(connection);
-  //  connection.listen();
-  //  process.stdin.on('end', () => {
-  //  console.error('[Child] stdin ended, exiting');
-  //  process.exit(0);
-  // });
-  function dpGet(dp: string){
-    const winccoa = requireWinccoaSafe();
-    const mgr = new winccoa.WinccoaManager();
-    mgr.dpGet()
-  }
 });
 
 server.on('error', (err) => {
@@ -507,60 +488,3 @@ function removeBasePrefix(base: string, target: string, separators: string[] = [
   // Remove the prefix from the target (if it starts with it)
   return target.startsWith(prefix) ? target.substring(prefix.length) : target;
 }
-
-
-// } else {
-//   // ----------------------
-//   // MAIN TCP SERVER
-//   // ----------------------node 
-//   const server = net.createServer((socket) => {
-//     console.log('Client connected:', socket.remoteAddress, socket.remotePort);
-
-//     // Spawn a new child process for each client
-//     console.log("My file: " + __filename)
-//     console.log("process.execPath: " + process.execPath);
-//     console.log("path.dirname(__filename) " + path.dirname(__filename));
-//     console.log('[Parent] Spawning:', process.execPath, ["--inspect",
-//                                                          "--",
-//                                                          "C:\\Program Files\\Siemens\\WinCC_OA\\3.21\\javascript\\winccoa-manage\\lib\\bootstrap.js",
-//                                                          "-PROJ",
-//                                                          "testVSPlugin",
-//                                                          "-pmonIndex 9",
-//                                                          "-num 2",
-//                                                          __filename,
-//                                                           "--child" ]);
-//     const child = spawn(process.execPath, [ "--inspect",
-//                                             "--",
-//                                             "C:\\Program Files\\Siemens\\WinCC_OA\\3.21\\javascript\\winccoa-manage\\lib\\bootstrap.js",
-//                                             "-PROJ",
-//                                             "testVSPlugin",
-//                                             "-pmonIndex 9",
-//                                             "-num 2",
-//                                             __filename,
-//                                              "--child" ], { //"--child", "-url " + HOST +":" + PORT
-//       stdio: ["pipe", "pipe", "inherit"],
-//       cwd: path.dirname(__filename),
-//     });
-
-//     // Connect client socket to child process
-//     child.on('exit', (code, signal) => console.error(`[Parent] Child exited ${code} ${signal}`));
-//     socket.pipe(child.stdin!);
-//     child.stdout!.pipe(socket);
-//     //child.stderr!.pipe(process.stderr);
-
-//     // Handle client disconnect
-//     socket.on('close', () => {
-//       console.log('Client disconnected, killing child process.');
-//       child.kill();
-//     });
-
-//     socket.on('error', (err) => {
-//       console.error('Socket error:', err.message);
-//       child.kill();
-//     });
-//   });
-
-//   server.listen(PORT, HOST, () => {
-//     console.log(`TCP server listening on ${HOST}:${PORT}`);
-//   });
-// }

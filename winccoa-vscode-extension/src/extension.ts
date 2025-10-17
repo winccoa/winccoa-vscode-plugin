@@ -1,7 +1,6 @@
 
 import * as vscode from 'vscode';
 import {
-  integer,
   State,
   LanguageClient,
   LanguageClientOptions,
