@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "../winccoa-vscode-extension/out",
+    "rootDir": "src",
+    "types": ["node", "vscode"]
+  },
+  "include": ["src"]
+}

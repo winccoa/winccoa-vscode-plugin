@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Extension (Client + Server)",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${execPath}",
+      "args": [
+        // Point to your extension (the client folder)
+        "--extensionDevelopmentPath=${workspaceFolder}/winccoa-vscode-extension"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/winccoa-vscode-extension/dist/**/*.js",
+        "${workspaceFolder}/winccoa-languageserver/dist/**/*.js"
+      ],
+      "preLaunchTask": "npm: compile",
+      "env": {
+        "NODE_ENV": "development"
+      }
+    }
+  ]
+}
