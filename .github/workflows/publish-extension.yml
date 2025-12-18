@@ -1,0 +1,97 @@
+name: Build and Publish VS Code Extension
+
+on:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        npm ci
+        npm run compile
+        
+    - name: Install VSCE
+      run: npm install -g @vscode/vsce
+      
+    - name: Package extension
+      run: |
+        mkdir -p releases
+        vsce package --out releases/
+        
+    - name: Get current version
+      id: get_version
+      run: |
+        VERSION=$(node -p "require('./package.json').version")
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Current version: $VERSION"
+        
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ steps.get_version.outputs.version }}
+        release_name: Release v${{ steps.get_version.outputs.version }}
+        body: |
+          ## WinCC OA Data Model LSP v${{ steps.get_version.outputs.version }}
+          
+          ### Installation
+          1. Download the `.vsix` file from this release
+          2. Install in VS Code: `Extensions > Install from VSIX...`
+          3. Clone and build language server:
+             ```bash
+             git clone https://github.com/winccoa/winccoa-vscode-plugin.git
+             cd winccoa-vscode-plugin/winccoa-languageserver
+             npm install && npm run compile
+             ```
+          
+          ### Changes
+          - Automated build and release
+          - Latest language server improvements
+          
+          See [README.md](README.md) for full setup instructions.
+        draft: false
+        prerelease: false
+        
+    - name: Upload VSIX to GitHub Release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: releases/winccoa-oa-lsp-client-${{ steps.get_version.outputs.version }}.vsix
+        asset_name: winccoa-oa-lsp-client-${{ steps.get_version.outputs.version }}.vsix
+        asset_content_type: application/zip
+        
+    - name: Publish to VS Code Marketplace
+      if: env.VSCE_TOKEN != ''
+      env:
+        VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
+      run: |
+        echo "Publishing to VS Code Marketplace..."
+        vsce publish --pat $VSCE_TOKEN
+        
+    - name: Marketplace publish status
+      run: |
+        if [ -z "${{ secrets.VSCE_TOKEN }}" ]; then
+          echo "⚠️  VSCE_TOKEN not set - skipped marketplace publishing"
+          echo "💡 Add your marketplace token as a repository secret to enable automatic publishing"
+          echo "📦 Extension packaged and available in GitHub releases"
+        else
+          echo "✅ Extension published to VS Code Marketplace"
+        fi

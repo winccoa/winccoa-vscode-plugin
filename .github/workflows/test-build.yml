@@ -1,0 +1,45 @@
+name: Test Extension Build
+
+on:
+  pull_request:
+    branches: [ master, main ]
+  push:
+    branches-ignore: [ master, main ]
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        npm ci
+        
+    - name: Compile TypeScript
+      run: |
+        npm run compile
+        
+    - name: Install VSCE
+      run: npm install -g @vscode/vsce
+      
+    - name: Test package build
+      run: |
+        mkdir -p test-releases
+        vsce package --out test-releases/
+        ls -la test-releases/
+        
+    - name: Upload test package
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-vsix-package
+        path: test-releases/*.vsix
+        retention-days: 7
