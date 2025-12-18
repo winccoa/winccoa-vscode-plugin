@@ -18,11 +18,11 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        cache: 'npm'
         
     - name: Install dependencies
       run: |
-        npm ci
+        # Use npm install since package-lock.json is in .gitignore
+        npm install
         
     - name: Compile TypeScript
       run: |
