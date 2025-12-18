@@ -22,7 +22,11 @@ jobs:
       run: |
         # Use npm install since package-lock.json is in .gitignore
         npm install
+        # Compile only the extension (language server excluded from CI)
+        cd winccoa-vscode-extension
+        npm install
         npm run compile
+        cd ..
         
     - name: Install VSCE
       run: npm install -g @vscode/vsce
@@ -30,6 +34,7 @@ jobs:
     - name: Package extension
       run: |
         mkdir -p releases
+        # Package from root directory to use root package.json
         vsce package --out releases/
         
     - name: Get current version

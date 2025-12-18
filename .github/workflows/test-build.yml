@@ -24,9 +24,13 @@ jobs:
         # Use npm install since package-lock.json is in .gitignore
         npm install
         
-    - name: Compile TypeScript
+    - name: Compile TypeScript (Extension only)
       run: |
+        # Only compile the extension, skip language server due to winccoa-manager dependency
+        cd winccoa-vscode-extension
+        npm install
         npm run compile
+        cd ..
         
     - name: Install VSCE
       run: npm install -g @vscode/vsce
@@ -34,6 +38,7 @@ jobs:
     - name: Test package build
       run: |
         mkdir -p test-releases
+        # Package from root directory to use root package.json
         vsce package --out test-releases/
         ls -la test-releases/
         
