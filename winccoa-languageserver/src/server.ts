@@ -77,7 +77,7 @@ const server = net.createServer((socket) => {
   async function buildIndexFromWinccoa(winccoa: any, query: string) {
     const mgr = new winccoa.WinccoaManager();
     try {
-      console.log('Building index with query:', query);
+      // console.log('Building index with query:', query);
       // Initial table
       const table = await mgr.dpQuery(query);
       //console.log('dpQuery returned table with', Array.isArray(table) ? table.length : 'no', 'rows');
@@ -194,7 +194,7 @@ const server = net.createServer((socket) => {
 
   // Completion: offer names/paths from index
   connection.onCompletion((_pos: TextDocumentPositionParams): CompletionItem[] => {
-    console.log('Completion requested at position:', _pos.position);
+    //console.log('Completion requested at position:', _pos.position);
     const items: CompletionItem[] = [];
     const doc = documents.get(_pos.textDocument.uri);
     if (!doc) {
@@ -214,15 +214,15 @@ const server = net.createServer((socket) => {
     //watch if a cns or dp function is written
     const matchCns = lineText.match(/\.(?:[A-Za-z0-9_]*?(?:cns)[A-Za-z0-9_]*)\(\s*(?:[^"'´]*["'´][^"'´]*["'´])*[^"'´]*["'´]([^"'´]*)$/im);
     //const matchCns = lineText.match(/\.(?:[A-Za-z0-9_]*?(?:cns)[A-Za-z0-9_]*)\(\s*["'´]([^"'´]*)$/im);
-    console.log('Searching for:', matchCns);
+    //console.log('Searching for:', matchCns);
     if (matchCns) {
       const dpObject = matchCns[1];
-      console.log("Search string for CNS autocomplete:", dpObject);
+      //console.log("Search string for CNS autocomplete:", dpObject);
 
       //looks like not containing a system name? - here you go
       if (!(dpObject.indexOf(':') > 0))
       {
-        console.log('Available Systems:', Array.from(model.views));
+        //console.log('Available Systems:', Array.from(model.views));
         const matchingViews = Array.from(model.views).filter(sys => sys.startsWith(dpObject));
         for (const view of matchingViews) {
         //  console.log("push " + view + " in context menu");
@@ -236,19 +236,18 @@ const server = net.createServer((socket) => {
       }
 
       const looksLikeCns = dpObject.match(/^([A-Za-z0-9_]+\.[A-Za-z0-9_]+:)([A-Za-z0-9_\.]+)?$/i);
-      console.log('lookslikeCNS match result:', looksLikeCns);
+      // console.log('lookslikeCNS match result:', looksLikeCns);
       if (looksLikeCns && model.cns.has(looksLikeCns[1])){
         const cnsSystem = looksLikeCns[1];
         //set von map<string, string>
         const map = model.cns.get(cnsSystem);
-        console.log('For looksLikeCns available CNS:', map ? Array.from(map.keys()) : 'none');
+        // console.log('For looksLikeCns available CNS:', map ? Array.from(map.keys()) : 'none');
         if (map) {
           var matchingCns = Array.from(map.keys()).filter(chrildren => chrildren.startsWith(looksLikeCns[2] ?? ""));
           //if (matchingCns.length <= 0) matchingCns = Array.from(map.keys());
           for (const cns of matchingCns) {
              var e = cns;
              if (looksLikeCns[2]?.indexOf(".") > 0) e = e.substring(looksLikeCns[2].lastIndexOf(".") +1);
-              console.log("push " + e + " in context menu");
                items.push({
                  label: e,
                  kind: CompletionItemKind.Variable,
@@ -395,7 +394,7 @@ const server = net.createServer((socket) => {
     // Get the current word/string under cursor using word boundaries
     const currentWord = getCurrentStringAtPosition(doc, params.position) ?? '';
     
-    console.log("Current word under cursor: " + currentWord);
+    // console.log("Current word under cursor: " + currentWord);
     const looksLikeDp = currentWord.match(/^([A-Za-z0-9]+:)([A-Za-z0-9_.]+)(:[A-Za-z0-9_.]+)?$/i) ?? "";
     if (looksLikeDp) {
       try {
@@ -445,9 +444,6 @@ const server = net.createServer((socket) => {
       const details = { type: 0 };
       const referenzDp = await mgr.cnsGetId(looksLikeCns.join(""), details);
       const nodeType = await mgr.dpGet("_CNS_General.NodeTypes.TypeName");
-      console.log("nodes referenzDp: " + referenzDp);
-      console.log("nodes nodeType: " + nodeType[details.type -1]);
-      console.log("nodes details.type: " + details.type);
       return {
         contents: {
           kind: MarkupKind.Markdown,
@@ -557,8 +553,6 @@ function getCurrentCNSFocus(document: TextDocument, position: { line: number; ch
   if (looksLikeCns) { 
     let mypos = position.character - start - 1;
     let out: string[];
-    console.log("View: " + looksLikeCns[1]);
-    console.log("Node: " + looksLikeCns[2]);
     if(looksLikeCns[1].length > mypos) {
       out = new Array(looksLikeCns[1]);
     } else { 
