@@ -217,7 +217,6 @@ const server = net.createServer((socket) => {
       end: _pos.position
     });
     //watch if a cns or dp function is written
-    //TODO seperate cns and dp gets
     const matchCns = lineText.match(/\.(?:[A-Za-z0-9_]*?(?:cns)[A-Za-z0-9_]*)\(\s*["'´]([^"'´]*)$/im);
     // console.log('Searching for:', matchCns);
     if (matchCns) {
@@ -290,10 +289,10 @@ const server = net.createServer((socket) => {
       const lookingForConfig = dpObject.match(/^([A-Za-z0-9]+:)([A-Za-z0-9_.]+:)([A-Za-z0-9_]+)?$/i);
       // console.log('Looking for configs:', lookingForConfig);
       if (lookingForConfig) {
-        const systemName = lookingForConfig[0];
-        const dpName = lookingForConfig[1]
+        //const systemName = lookingForConfig[0];
+        //const dpName = lookingForConfig[1]
         for (const key of dpConfigAttributes.keys()) {
-              //  console.log("push " + key + " in context menu");
+          //  console.log("push " + key + " in context menu");
           // console.log('Key:', key);
           items.push({ 
             label: key, 
@@ -393,40 +392,86 @@ const server = net.createServer((socket) => {
   });
 
   // Hover: describe either DP or DPE
-  connection.onHover((params): Hover | undefined => {
+  connection.onHover(async (params): Promise<Hover | undefined> =>  {
     const doc = documents.get(params.textDocument.uri);
     if (!doc) return undefined;
-    const text = doc.getText();
-    const offset = doc.offsetAt(params.position);
-    const start = Math.max(0, offset - 128);
-    const context = text.slice(start, offset);
-    const wordMatch = context.match(/([A-Za-z_][\w]*)(?:\.([\w\.]+))?$/);
-    if (!wordMatch) return undefined;
-    const dp = wordMatch[1];
-    const rest = wordMatch[2];
-    // TODO: provide tooltip for correct context: DP description for DPEs, documented help for Config/Attr, Display name for CNS path, full path for cat/ctl files
-    if (model.dps.has(dp)) {
-      if (rest) {
-        const elements = model.dpes.get(dp);
-        if (elements && elements.has(rest)) {
-          //dpGet(`${dp}.${rest}`) //todo add value in description
-          return {
-            contents: {
-              kind: MarkupKind.Markdown,
-              value: `WinCC OA element: \`${dp}.${rest}\`\n\n- example attr: _original.._value`
-            }
-          };
-        }
+    
+    // Get the current word/string under cursor using word boundaries
+    const currentWord = getCurrentStringAtPosition(doc, params.position) ?? '';
+    
+    console.log("Current word under cursor: " + currentWord);
+    const looksLikeDp = currentWord.match(/^([A-Za-z0-9]+:)([A-Za-z0-9_.]+)(:[A-Za-z0-9_.]+)?$/i) ?? "";
+    console.log("System: " + looksLikeDp[1]);
+    console.log("DPE: " + looksLikeDp[2]);
+    console.log("DPConf: " + looksLikeDp[3]);
+    if (looksLikeDp) {
+      try {
+        let mydp = looksLikeDp[2];
+        if (looksLikeDp[2].indexOf(".") < 0)  mydp = mydp + "."; //make it possible to hover also dp without dpe
+        const winccoa = requireWinccoaSafe();
+        const mgr = new winccoa.WinccoaManager();
+        if (!mgr.dpExists(mydp))
+          return undefined;
+        const type = mgr.dpElementType(mydp);
+        let unit = "";
+        if (type) unit = WinccoaElementType[type] as string;
+        const value = await mgr.dpGet(mydp); //dpGet(mgr, `${dpeMatch[1]}.${dpeMatch[2]}`);
+        return {
+          contents: {
+            kind: MarkupKind.Markdown,
+            value: `WinCC OA element: \`${mydp}${looksLikeDp[3] ?? ""}\`\nType: ${unit ?? 'unknown'} \n Value: ${value ?? ""}`
+          }
+        };
+      } catch (exc) {
+        //console.error('Hover retrieval failed:', exc);
+        return undefined;
       }
+
+    }
+  
+  const looksLikeCns = getCurrentCNSFocus(doc, params.position) ?? '';
+  if (looksLikeCns) { 
+    console.log("lookslikeCNS123 for hover:", looksLikeCns);
+    //const set = model.cns.get(looksLikeCns[1])!;
+    const winccoa = requireWinccoaSafe();
+    const mgr = new winccoa.WinccoaManager();
+    if (looksLikeCns.length <= 1) {
+      console.log("nodes view: " + looksLikeCns[0]);
+      let existsView = await mgr.cns_viewExists(looksLikeCns[0]);
+      if (!existsView) return undefined;
+      console.log("nodes view: " + looksLikeCns[0]);
+      const viewname = await mgr.cnsGetViewDisplayNames(looksLikeCns[0]);
       return {
         contents: {
           kind: MarkupKind.Markdown,
-          value: `WinCC OA data point: \`${dp}\``
+          value: `View Name: \`${viewname}\``
         }
       };
     }
-    return undefined;
-  });
+    else {
+      console.log("nodes node: " + looksLikeCns.join(""));
+      //let exists = await mgr.cns_nodeExists(looksLikeCns.join(""));
+      //if (!exists) return undefined;
+      const displayname = await mgr.cnsGetDisplayNames(looksLikeCns.join(""));
+      console.log("nodes displayname: " + displayname);
+      const details = { type: 0 };
+      const referenzDp = await mgr.cnsGetId(looksLikeCns.join(""), details);
+      console.log("nodes referenzDp: " + referenzDp);
+      console.log("nodes referenzDp: " + details.type);
+      return {
+        contents: {
+          kind: MarkupKind.Markdown,
+          value: `View Name: \`${displayname}\`\nReferenced DP: \`${referenzDp}\``
+        }
+      };
+    }
+ 
+    //const displayName = mgr.cnsGetDisplayNames(looksLikeCns[1]);
+    //const viewDisplayName = mgr.cnsGetViewDisplayNames(looksLikeCns[2]);
+  }
+
+  return undefined;
+});
 
   documents.listen(connection);
   // Optional: clean up on socket end/close
@@ -487,4 +532,98 @@ function removeBasePrefix(base: string, target: string, separators: string[] = [
 
   // Remove the prefix from the target (if it starts with it)
   return target.startsWith(prefix) ? target.substring(prefix.length) : target;
+}
+
+/**
+ * Get the word at a specific position in the document
+ * This handles various word boundaries and string contexts
+ */
+function getCurrentCNSFocus(document: TextDocument, position: { line: number; character: number }): string[] | undefined {
+  const line = document.getText({
+    start: { line: position.line, character: 0 },
+    end: { line: position.line + 1, character: 0 }
+  });
+  
+  if (position.character >= line.length) {
+    return undefined;
+  }
+  
+  // Define word characters (adjust based on your language needs)
+  const wordChars = /[A-Za-z0-9_.:]/;
+  
+  // Find start of word
+  let start = position.character;
+  while (start > 0 && wordChars.test(line.charAt(start - 1))) {
+    start--;
+  }
+  
+  // Find end of word
+  let end = position.character;
+  while (end < line.length && wordChars.test(line.charAt(end))) {
+    end++;
+  }
+  
+  if (start === end) {
+    return undefined;
+  }
+  let myval = line.substring(start, end);
+  const looksLikeCns = myval.match(/^([A-Za-z0-9.]+:)([A-Za-z0-9_.]+)?$/i) ?? "";
+  if (looksLikeCns) { 
+    let mypos = position.character - start - 1;
+    let out: string[];
+    console.log("View: " + looksLikeCns[1]);
+    console.log("Node: " + looksLikeCns[2]);
+    if(looksLikeCns[1].length > mypos) {
+      out = new Array(looksLikeCns[1]);
+    } else { 
+      out = new Array(looksLikeCns[1], looksLikeCns[2] ?? "");
+    }
+    return out;
+  }
+  return undefined;
+}
+
+/**
+ * Get the current string literal at position (for quoted strings)
+ */
+function getCurrentStringAtPosition(document: TextDocument, position: { line: number; character: number }): string | undefined {
+  const line = document.getText({
+    start: { line: position.line, character: 0 },
+    end: { line: position.line + 1, character: 0 }
+  });
+  
+  const char = position.character;
+  if (char >= line.length) return undefined;
+  
+  // Check if we're inside a quoted string
+  const quotes = ['"', "'", '´'];
+  
+  for (const quote of quotes) {
+    let start = -1;
+    let end = -1;
+    let inString = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      if (line.charAt(i) === quote) {
+        if (!inString) {
+          start = i;
+          inString = true;
+        } else {
+          end = i;
+          // Check if cursor is within this string
+          if (char > start && char <= end) {
+            return line.substring(start + 1, end);
+          }
+          inString = false;
+        }
+      }
+    }
+    
+    // Handle unclosed string
+    if (inString && char > start) {
+      return line.substring(start + 1);
+    }
+  }
+  
+  return undefined;
 }

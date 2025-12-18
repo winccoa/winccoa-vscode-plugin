@@ -1,13 +1,33 @@
 {
   "name": "winccoa-oa-lsp-client",
-  "displayName": "WinCC OA Data Model LSP (Starter)",
-  "description": "Starter VS Code extension with an LSP server that provides IntelliSense for a WinCC OA data model. Uses winccoa-manager when available; otherwise falls back to an offline sample.",
+  "displayName": "WinCC OA Data Model LSP",
+  "description": "VS Code extension providing IntelliSense for WinCC OA data points, control navigation system (CNS), and configuration attributes. Includes autocomplete, hover information, and syntax support for WinCC OA projects.",
   "version": "0.0.1",
   "publisher": "etm",
   "author": "ETM professional control",
+  "license": "MIT",
+  "homepage": "https://github.com/winccoa/winccoa-vscode-plugin",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/winccoa/winccoa-vscode-plugin.git"
+  },
+  "bugs": {
+    "url": "https://github.com/winccoa/winccoa-vscode-plugin/issues"
+  },
   "keywords": [
-    "WinCCOA"
+    "WinCC OA",
+    "SCADA",
+    "IntelliSense",
+    "Language Server",
+    "Autocomplete",
+    "Data Points",
+    "CNS"
   ],
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
+  "icon": "icon.png",
   "engines": {
     "vscode": "^1.95.0"
   },
