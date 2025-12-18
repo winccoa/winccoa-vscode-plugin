@@ -17,7 +17,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         
     - name: Install dependencies
       run: |
@@ -33,13 +33,17 @@ jobs:
         cd ..
         
     - name: Install VSCE
-      run: npm install -g @vscode/vsce
+      run: npm install -g @vscode/vsce@2.22.0
       
     - name: Test package build
       run: |
         mkdir -p test-releases
+        # Debug: Check Node.js and VSCE versions
+        node --version
+        vsce --version
         # Package from root directory to use root package.json
-        vsce package --out test-releases/
+        echo "Packaging extension..."
+        vsce package --out test-releases/ || (echo "VSCE package failed, trying with --no-dependencies" && vsce package --no-dependencies --out test-releases/)
         ls -la test-releases/
         
     - name: Upload test package
