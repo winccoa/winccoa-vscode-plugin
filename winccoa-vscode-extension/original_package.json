@@ -15,7 +15,7 @@
     "onLanguage:typescript",
     "onCommand:winccoaLsp.reloadIndex"
   ],
-  "main": "./winccoa-vscode-extension/out/extension.js",
+  "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {

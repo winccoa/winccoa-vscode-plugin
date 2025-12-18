@@ -21,27 +21,34 @@ jobs:
         
     - name: Install dependencies
       run: |
-        # Use npm install since package-lock.json is in .gitignore
+        # Install dependencies for the extension only
+        cd winccoa-vscode-extension
         npm install
         
     - name: Compile TypeScript (Extension only)
       run: |
         # Only compile the extension, skip language server due to winccoa-manager dependency
         cd winccoa-vscode-extension
+        npm run compile
+        
+    - name: Test Language Server Build
+      run: |
+        # Test that language server compiles successfully
+        cd winccoa-languageserver
         npm install
         npm run compile
-        cd ..
         
     - name: Install VSCE
       run: npm install -g @vscode/vsce@2.22.0
       
     - name: Test package build
       run: |
+        cd winccoa-vscode-extension
         mkdir -p test-releases
         # Debug: Check Node.js and VSCE versions
         node --version
         vsce --version
-        # Package from root directory to use root package.json
+        # Package from extension directory
         echo "Packaging extension..."
         vsce package --out test-releases/ || (echo "VSCE package failed, trying with --no-dependencies" && vsce package --no-dependencies --out test-releases/)
         ls -la test-releases/
@@ -50,5 +57,5 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: test-vsix-package
-        path: test-releases/*.vsix
+        path: winccoa-vscode-extension/test-releases/*.vsix
         retention-days: 7

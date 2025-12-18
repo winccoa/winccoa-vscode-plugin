@@ -20,30 +20,29 @@ jobs:
         
     - name: Install dependencies
       run: |
-        # Use npm install since package-lock.json is in .gitignore
-        npm install
-        # Compile only the extension (language server excluded from CI)
+        # Install dependencies for the extension only
         cd winccoa-vscode-extension
         npm install
         npm run compile
-        cd ..
         
     - name: Install VSCE
       run: npm install -g @vscode/vsce@2.22.0
       
     - name: Package extension
       run: |
+        cd winccoa-vscode-extension
         mkdir -p releases
         # Debug: Check Node.js and VSCE versions  
         node --version
         vsce --version
-        # Package from root directory to use root package.json
+        # Package from extension directory
         echo "Packaging extension..."
         vsce package --out releases/ || (echo "VSCE package failed, trying with --no-dependencies" && vsce package --no-dependencies --out releases/)
         
     - name: Get current version
       id: get_version
       run: |
+        cd winccoa-vscode-extension
         VERSION=$(node -p "require('./package.json').version")
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Current version: $VERSION"
@@ -83,7 +82,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: releases/winccoa-oa-lsp-client-${{ steps.get_version.outputs.version }}.vsix
+        asset_path: winccoa-vscode-extension/releases/winccoa-oa-lsp-client-${{ steps.get_version.outputs.version }}.vsix
         asset_name: winccoa-oa-lsp-client-${{ steps.get_version.outputs.version }}.vsix
         asset_content_type: application/zip
         
@@ -92,6 +91,7 @@ jobs:
       env:
         VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
       run: |
+        cd winccoa-vscode-extension
         echo "Publishing to VS Code Marketplace..."
         vsce publish --pat $VSCE_TOKEN
         

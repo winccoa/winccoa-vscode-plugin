@@ -30,6 +30,8 @@ export function activate(context: vscode.ExtensionContext) {
   const clientOptions: LanguageClientOptions = {
     documentSelector: [{ scheme: 'file', language: 'javascript' }, { scheme: 'file', language: 'typescript' }],
     synchronize: { configurationSection: 'winccoaLsp' },
+    outputChannel: output,
+    traceOutputChannel: output,
     initializationOptions: {
       mode: vscode.workspace.getConfiguration('winccoaLsp').get('mode'),
       query: vscode.workspace.getConfiguration('winccoaLsp').get('query')
