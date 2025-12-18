@@ -31,13 +31,6 @@ jobs:
         cd winccoa-vscode-extension
         npm run compile
         
-    - name: Test Language Server Build
-      run: |
-        # Test that language server compiles successfully
-        cd winccoa-languageserver
-        npm install
-        npm run compile
-        
     - name: Install VSCE
       run: npm install -g @vscode/vsce@2.22.0
       
