@@ -7,7 +7,7 @@
   "Subprojects": [
 	{
 	"Name": "winccoa-languageserver",
-	"Description": "sub desc",
+	"Description": "WinCC OA Language Server",
 	"Managers": 
 	  [
         {
