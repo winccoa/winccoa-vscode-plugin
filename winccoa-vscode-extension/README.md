@@ -1,7 +1,7 @@
 # WinCC OA Scripting Assistant for VS Code
 
 Enhanced scripting support for WinCC OA projects inside Visual Studio Code. This extension provides:
-- In-editor IntelliSense for WinCC OA JavaScript/TypeScript code that uses the official `winccoa-manager` API.
+- In-editor IntelliSense for WinCC OA JavaScript/TypeScript/CTL code that uses the official `winccoa-manager` API.
 - Context-aware code completion for your project’s data model (Datapoints and Plant Model / CNS).
 - Mouse-hover details (description, unit, live/current value) for datapoints and elements.
 - A language server that runs as a WinCC OA JavaScript Manager to access the live project context.

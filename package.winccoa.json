@@ -1,0 +1,21 @@
+{
+  "RepoName": "winccoa-vscode-plugin",
+  "Keywords": ["javascript"],
+  "Version": "0.0.1",
+  "Description": "WinCC OA Language Server Protocol (LSP) for the Visual Studio Code Extension",
+  "OaVersion": "^3.21.0",
+  "Subprojects": [
+	{
+	"Name": "winccoa-languageserver",
+	"Description": "sub desc",
+	"Managers": 
+	  [
+        {
+		"Name": "node",
+		"StartMode": "Always",
+		"Options": "server.js"
+	    }
+	  ]
+	}
+  ]
+}

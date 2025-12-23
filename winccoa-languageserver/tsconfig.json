@@ -5,7 +5,7 @@
     "lib": [
       "ES2020"
     ],
-    "outDir": "../winccoa-languageserver/out",
+    "outDir": "./javascript",
     "rootDir": "src",
     "strict": true,
     "sourceMap": true,

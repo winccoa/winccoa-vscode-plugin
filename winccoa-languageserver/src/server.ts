@@ -12,7 +12,6 @@ import {
 } from 'vscode-languageserver/node';
 import { StreamMessageReader, StreamMessageWriter } from 'vscode-jsonrpc/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { WinccoaSysConDpDetails, WinccoaElementType } from 'winccoa-manager';
 import { dpConfigAttributes } from './wincc_oa_dpconfigs';
 
 // Index types
@@ -116,7 +115,7 @@ const server = net.createServer((socket) => {
           if (dpe) {
             const type = mgr.dpElementType(`${dp}.${dpe}`);
             var typeName = "";
-            if (type) typeName = WinccoaElementType[type] as string;
+            if (type && winccoa.WinccoaElementType) typeName = winccoa.WinccoaElementType[type] as string;
             if (!model.dpes.has(dp)) model.dpes.set(dp, new Map());
             const set = model.dpes.get(dp)!;
             set.set(dpe, typeName);
@@ -177,7 +176,7 @@ const server = net.createServer((socket) => {
    mgr.sysConnect.on(winccoa.WinccoaSysConEvent.DpRenamed, dpCreatedListener);
   });
 
-  function dpCreatedListener(details: WinccoaSysConDpDetails) {
+  function dpCreatedListener(details: any) {
     // console.log('DP created - details:');
     console.log(details);
     const winccoa = requireWinccoaSafe();
@@ -406,7 +405,7 @@ const server = net.createServer((socket) => {
           return undefined;
         const type = mgr.dpElementType(mydp);
         let unit = "";
-        if (type) unit = WinccoaElementType[type] as string;
+        if (type && winccoa.WinccoaElementType) unit = winccoa.WinccoaElementType[type] as string;
         const value = await mgr.dpGet(mydp);
         return {
           contents: {
