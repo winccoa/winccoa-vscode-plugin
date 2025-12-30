@@ -1,0 +1,31 @@
+# Ignore language server folder (not part of extension)
+winccoa-languageserver/**
+
+# Development files
+.vscode/**
+.vscode-test/**
+src/**
+**/*.map
+.gitignore
+.gitattributes
+.nyc_output
+coverage/
+**/tsconfig*.json
+**/.eslintrc.json
+**/tslint.json
+**/*.tsbuildinfo
+
+# Dependencies
+**/node_modules/**
+
+# Build files
+build.cmd
+expiredCert.ps1
+
+# Documentation
+ICON_README.md
+original_package.json
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -12,7 +12,6 @@ import {
 } from 'vscode-languageserver/node';
 import { StreamMessageReader, StreamMessageWriter } from 'vscode-jsonrpc/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { WinccoaSysConDpDetails, WinccoaElementType } from 'winccoa-manager';
 import { dpConfigAttributes } from './wincc_oa_dpconfigs';
 
 // Index types
@@ -25,7 +24,6 @@ interface ModelIndex {
   sys: Set<string>;
 }
 // TODO: Add -dbg parameter to all the echos
-// DONE? TODO: add these parameters to general properties of the extension so that they can be configured by the user
 
 function getArg(flag: string) {
   const index = process.argv.indexOf(flag);
@@ -56,8 +54,6 @@ const server = net.createServer((socket) => {
   const model: ModelIndex = { dps: new Set(), dpes: new Map(), cns: new Map(), sys: new Set(), views: new Set() };
 
   // Identify DPEs (leafs in the tree) with existing original value config
-  // DONE? TODO elememt den typ hinzufügen
-  // DONE? TODO CNS display name hinzufügen
   let initQuery = "SELECT '_original.._type' FROM '*.**'";
 
   // Attempt to load winccoa-manager dynamically
@@ -80,7 +76,7 @@ const server = net.createServer((socket) => {
   async function buildIndexFromWinccoa(winccoa: any, query: string) {
     const mgr = new winccoa.WinccoaManager();
     try {
-      console.log('Building index with query:', query);
+      // console.log('Building index with query:', query);
       // Initial table
       const table = await mgr.dpQuery(query);
       //console.log('dpQuery returned table with', Array.isArray(table) ? table.length : 'no', 'rows');
@@ -101,7 +97,7 @@ const server = net.createServer((socket) => {
           const colonPos = name.indexOf(':');
           let nameWithoutSystem = colonPos > 0 ? name.substring(colonPos + 1) : name;
           //make it possible to add more systems
-          model.sys.add(name.substring(0, colonPos + 1))
+          model.sys.add(name.substring(0, colonPos))
           
           // Then check for dot (DP/DPE separator)
           const dotPos = nameWithoutSystem.indexOf('.');
@@ -119,7 +115,7 @@ const server = net.createServer((socket) => {
           if (dpe) {
             const type = mgr.dpElementType(`${dp}.${dpe}`);
             var typeName = "";
-            if (type) typeName = WinccoaElementType[type] as string;
+            if (type && winccoa.WinccoaElementType) typeName = winccoa.WinccoaElementType[type] as string;
             if (!model.dpes.has(dp)) model.dpes.set(dp, new Map());
             const set = model.dpes.get(dp)!;
             set.set(dpe, typeName);
@@ -131,15 +127,13 @@ const server = net.createServer((socket) => {
     } catch (e) {
       console.error('dpQuery failed: ' + e);
     }
-
-    //DONE? TODO: build index for CNS tree (mind format of sys.view:tree => if first dot comes before colon, then it's CNS)
-    //DONE? TODO group it like dps
+    // CNS Index
     const sysname = mgr.getSystemName();
     const views = mgr.cnsGetViews(sysname.replace(':', '')); //replace the ":" after systemname for cns views
     // console.log("Views: " + views);
     for (const view of views)
     {
-      model.views.add(view);
+      model.views.add(view.replace(':', ''));
       const trees = await mgr.cnsGetTrees(view);
       // console.log('Trees:', trees);
       for (const tree of trees) {
@@ -152,12 +146,12 @@ const server = net.createServer((socket) => {
   connection.onInitialize(async (params: InitializeParams) => {
       const opts = (params.initializationOptions as any) || {};
       initQuery = typeof opts.query === 'string' && opts.query.trim() ? opts.query : initQuery;
-      const letters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
+      // const letters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
       const result: InitializeResult = {
         capabilities: {
           textDocumentSync: 1,
           completionProvider: {
-            triggerCharacters: ['.', ':', '_', "\"", "'", "´", ...letters] //, ...letters
+            triggerCharacters: ['.', ':', '_', "\"", "'", "´"] //, ...letters
           },
           hoverProvider: true
         }
@@ -182,7 +176,7 @@ const server = net.createServer((socket) => {
    mgr.sysConnect.on(winccoa.WinccoaSysConEvent.DpRenamed, dpCreatedListener);
   });
 
-  function dpCreatedListener(details: WinccoaSysConDpDetails) {
+  function dpCreatedListener(details: any) {
     // console.log('DP created - details:');
     console.log(details);
     const winccoa = requireWinccoaSafe();
@@ -199,7 +193,7 @@ const server = net.createServer((socket) => {
 
   // Completion: offer names/paths from index
   connection.onCompletion((_pos: TextDocumentPositionParams): CompletionItem[] => {
-    console.log('Completion requested at position:', _pos.position);
+    //console.log('Completion requested at position:', _pos.position);
     const items: CompletionItem[] = [];
     const doc = documents.get(_pos.textDocument.uri);
     if (!doc) {
@@ -217,17 +211,17 @@ const server = net.createServer((socket) => {
       end: _pos.position
     });
     //watch if a cns or dp function is written
-    //TODO seperate cns and dp gets
-    const matchCns = lineText.match(/\.(?:[A-Za-z0-9_]*?(?:cns)[A-Za-z0-9_]*)\(\s*["'´]([^"'´]*)$/im);
-    // console.log('Searching for:', matchCns);
+    const matchCns = lineText.match(/\.(?:[A-Za-z0-9_]*?(?:cns)[A-Za-z0-9_]*)\(\s*(?:[^"'´]*["'´][^"'´]*["'´])*[^"'´]*["'´]([^"'´]*)$/im);
+    //const matchCns = lineText.match(/\.(?:[A-Za-z0-9_]*?(?:cns)[A-Za-z0-9_]*)\(\s*["'´]([^"'´]*)$/im);
+    //console.log('Searching for:', matchCns);
     if (matchCns) {
       const dpObject = matchCns[1];
-      // console.log("Search string for CNS autocomplete:", dpObject);
+      //console.log("Search string for CNS autocomplete:", dpObject);
 
       //looks like not containing a system name? - here you go
       if (!(dpObject.indexOf(':') > 0))
       {
-        console.log('Available Systems:', Array.from(model.views));
+        //console.log('Available Systems:', Array.from(model.views));
         const matchingViews = Array.from(model.views).filter(sys => sys.startsWith(dpObject));
         for (const view of matchingViews) {
         //  console.log("push " + view + " in context menu");
@@ -248,12 +242,11 @@ const server = net.createServer((socket) => {
         const map = model.cns.get(cnsSystem);
         // console.log('For looksLikeCns available CNS:', map ? Array.from(map.keys()) : 'none');
         if (map) {
-          var matchingCns = Array.from(map.keys()).filter(chrildren => chrildren.startsWith(looksLikeCns[2]));
-          if (matchingCns.length <= 0) matchingCns = Array.from(map.keys());
+          var matchingCns = Array.from(map.keys()).filter(chrildren => chrildren.startsWith(looksLikeCns[2] ?? ""));
+          //if (matchingCns.length <= 0) matchingCns = Array.from(map.keys());
           for (const cns of matchingCns) {
              var e = cns;
              if (looksLikeCns[2]?.indexOf(".") > 0) e = e.substring(looksLikeCns[2].lastIndexOf(".") +1);
-              //  console.log("push " + e + " in context menu");
                items.push({
                  label: e,
                  kind: CompletionItemKind.Variable,
@@ -266,7 +259,7 @@ const server = net.createServer((socket) => {
       }
     }
 
-    const matchDp = lineText.match(/\.(?:[A-Za-z0-9_]*?(?:dp)[A-Za-z0-9_]*)\(\s*["'´]([^"'´]*)$/im);
+    const matchDp = lineText.match(/\.(?:[A-Za-z0-9_]*?(?:dp)[A-Za-z0-9_]*)\(\s*(?:[^"'´]*["'´][^"'´]*["'´])*[^"'´]*["'´]([^"'´]*)$/im);
     if (matchDp) {
       const dpObject = matchDp[1];
       // console.log("Search string for DP autocomplete:", dpObject);
@@ -290,11 +283,11 @@ const server = net.createServer((socket) => {
       const lookingForConfig = dpObject.match(/^([A-Za-z0-9]+:)([A-Za-z0-9_.]+:)([A-Za-z0-9_]+)?$/i);
       // console.log('Looking for configs:', lookingForConfig);
       if (lookingForConfig) {
-        const systemName = lookingForConfig[0];
-        const dpName = lookingForConfig[1]
+        //const systemName = lookingForConfig[0];
+        //const dpName = lookingForConfig[1]
         for (const key of dpConfigAttributes.keys()) {
-              //  console.log("push " + key + " in context menu");
-          console.log('Key:', key);
+          //  console.log("push " + key + " in context menu");
+          // console.log('Key:', key);
           items.push({ 
             label: key, 
             kind: CompletionItemKind.Field,
@@ -393,40 +386,74 @@ const server = net.createServer((socket) => {
   });
 
   // Hover: describe either DP or DPE
-  connection.onHover((params): Hover | undefined => {
+  connection.onHover(async (params): Promise<Hover | undefined> =>  {
     const doc = documents.get(params.textDocument.uri);
     if (!doc) return undefined;
-    const text = doc.getText();
-    const offset = doc.offsetAt(params.position);
-    const start = Math.max(0, offset - 128);
-    const context = text.slice(start, offset);
-    const wordMatch = context.match(/([A-Za-z_][\w]*)(?:\.([\w\.]+))?$/);
-    if (!wordMatch) return undefined;
-    const dp = wordMatch[1];
-    const rest = wordMatch[2];
-    // TODO: provide tooltip for correct context: DP description for DPEs, documented help for Config/Attr, Display name for CNS path, full path for cat/ctl files
-    if (model.dps.has(dp)) {
-      if (rest) {
-        const elements = model.dpes.get(dp);
-        if (elements && elements.has(rest)) {
-          //dpGet(`${dp}.${rest}`) //todo add value in description
-          return {
-            contents: {
-              kind: MarkupKind.Markdown,
-              value: `WinCC OA element: \`${dp}.${rest}\`\n\n- example attr: _original.._value`
-            }
-          };
-        }
+    
+    // Get the current word/string under cursor using word boundaries
+    const currentWord = getCurrentStringAtPosition(doc, params.position) ?? '';
+    
+    // console.log("Current word under cursor: " + currentWord);
+    const looksLikeDp = currentWord.match(/^([A-Za-z0-9]+:)([A-Za-z0-9_.]+)(:[A-Za-z0-9_.]+)?$/i) ?? "";
+    if (looksLikeDp) {
+      try {
+        let mydp = looksLikeDp[2];
+        if (looksLikeDp[2].indexOf(".") < 0)  mydp = mydp + "."; //make it possible to hover also dp without dpe
+        const winccoa = requireWinccoaSafe();
+        const mgr = new winccoa.WinccoaManager();
+        if (!mgr.dpExists(mydp))
+          return undefined;
+        const type = mgr.dpElementType(mydp);
+        let unit = "";
+        if (type && winccoa.WinccoaElementType) unit = winccoa.WinccoaElementType[type] as string;
+        const value = await mgr.dpGet(mydp);
+        return {
+          contents: {
+            kind: MarkupKind.Markdown,
+            value: `WinCC OA element: \`${mydp}${looksLikeDp[3] ?? ""}\`\nType: ${unit ?? 'unknown'} \n Value: ${value ?? ""}`
+          }
+        };
+      } catch (exc) {
+        //console.error('Hover retrieval failed:', exc);
+        return undefined;
       }
+
+    }
+  
+  const looksLikeCns = getCurrentCNSFocus(doc, params.position) ?? '';
+  if (looksLikeCns) { 
+    //const set = model.cns.get(looksLikeCns[1])!;
+    const winccoa = requireWinccoaSafe();
+    const mgr = new winccoa.WinccoaManager();
+    if (looksLikeCns.length <= 1) {
+      let existsView = await mgr.cns_viewExists(looksLikeCns[0]);
+      if (!existsView) return undefined;
+      const viewname = await mgr.cnsGetViewDisplayNames(looksLikeCns[0]);
       return {
         contents: {
           kind: MarkupKind.Markdown,
-          value: `WinCC OA data point: \`${dp}\``
+          value: `View Name: \`${viewname}\``
         }
       };
     }
-    return undefined;
-  });
+    else {
+      //let exists = await mgr.cns_nodeExists(looksLikeCns.join(""));
+      //if (!exists) return undefined;
+      const displayname = await mgr.cnsGetDisplayNames(looksLikeCns.join(""));
+      const details = { type: 0 };
+      const referenzDp = await mgr.cnsGetId(looksLikeCns.join(""), details);
+      const nodeType = await mgr.dpGet("_CNS_General.NodeTypes.TypeName");
+      return {
+        contents: {
+          kind: MarkupKind.Markdown,
+          value: `View ${looksLikeCns.join("")} View Name: \`${displayname}\` Referenced DP: \`${referenzDp}\` Node Type: \`${nodeType[details.type -1]}\``
+        }
+      };
+    }
+  }
+
+  return undefined;
+});
 
   documents.listen(connection);
   // Optional: clean up on socket end/close
@@ -438,8 +465,6 @@ const server = net.createServer((socket) => {
       socket.destroy();
     } catch {}
   };
-  // TODO: allow reconnecting clients so that server remains running instead of shutting down on editor close
-  // DONE? for now done with node server on always, if server stop, client reconnect during runtime
   socket.on('error', () => close());
   socket.on('close', () => close());
   socket.on('end', () => close());
@@ -487,4 +512,121 @@ function removeBasePrefix(base: string, target: string, separators: string[] = [
 
   // Remove the prefix from the target (if it starts with it)
   return target.startsWith(prefix) ? target.substring(prefix.length) : target;
+}
+
+/**
+ * Get the word at a specific position in the document
+ * This handles various word boundaries and string contexts
+ */
+function getCurrentCNSFocus(document: TextDocument, position: { line: number; character: number }): string[] | undefined {
+  const line = document.getText({
+    start: { line: position.line, character: 0 },
+    end: { line: position.line + 1, character: 0 }
+  });
+  
+  if (position.character >= line.length) {
+    return undefined;
+  }
+  
+  // Define word characters (adjust based on your language needs)
+  const wordChars = /[A-Za-z0-9_.:]/;
+  const wordCharsEnd = /[A-Za-z0-9_.:]/;
+  
+  // Find start of word
+  let start = position.character;
+  while (start > 0 && wordChars.test(line.charAt(start - 1))) {
+    start--;
+  }
+  
+  // Find end of word
+  let end = position.character;
+  while (end < line.length && wordChars.test(line.charAt(end))) {
+    end++;
+  }
+  
+  if (start === end) {
+    return undefined;
+  }
+  let myval = line.substring(start, end);
+  const looksLikeCns = myval.match(/^([A-Za-z0-9.]+:)([A-Za-z0-9_.]+)?$/i) ?? "";
+  if (looksLikeCns) { 
+    let mypos = position.character - start - 1;
+    let out: string[];
+    if(looksLikeCns[1].length > mypos) {
+      out = new Array(looksLikeCns[1]);
+    } else { 
+      const cutNode = cutFromFirstDotAfterPosition(looksLikeCns[2], mypos - looksLikeCns[1].length);
+      out = new Array(looksLikeCns[1], cutNode);
+    }
+    return out;
+  }
+  return undefined;
+}
+
+/**
+ * Get the current string literal at position (for quoted strings)
+ * Strings must start with a quote but can end with either a quote or a dot (dot has priority)
+ */
+function getCurrentStringAtPosition(document: TextDocument, position: { line: number; character: number }): string | undefined {
+  const line = document.getText({
+    start: { line: position.line, character: 0 },
+    end: { line: position.line + 1, character: 0 }
+  });
+  
+  const char = position.character;
+  if (char >= line.length) return undefined;
+  
+  // Check if we're inside a quoted string
+  const quotes = ['"', "'", '´'];
+  
+  for (const quote of quotes) {
+    let start = -1;
+    let end = -1;
+    let inString = false;
+    
+    for (let i = 0; i < line.length; i++) {
+      if (line.charAt(i) === quote && !inString) {
+        start = i;
+        inString = true;
+      }
+      if (line.charAt(i) === quote && inString) {
+        end = i;
+        // Check if cursor is within this string
+        if (char > start && char <= end) {
+         return line.substring(start + 1, end);
+        }
+        inString = false;
+      }
+    }
+    
+    // Handle unclosed string
+    if (inString && char > start) {
+      return line.substring(start + 1);
+    }
+  }
+  
+  return undefined;
+}
+
+/**
+ * Cuts away the string content from the first dot after the given position
+ * @param str The input string
+ * @param position The position to start looking for the first dot (0-based)
+ * @returns The string with content after the first dot removed, or original string if no dot found
+ */
+function cutFromFirstDotAfterPosition(str: string, position: number): string {
+  if (!str || position < 0 || position >= str.length) {
+    return str;
+  }
+  
+  // Find the first dot after the given position
+  const dotIndex = str.indexOf('.', position);
+  
+  if (dotIndex === -1) {
+    // No dot found after position, return original string
+    return str;
+  }
+  
+  // Return string up to (but not including) the dot
+  return str.substring(0, dotIndex);
 }

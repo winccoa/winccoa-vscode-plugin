@@ -1,0 +1,54 @@
+name: Test Extension Build
+
+on:
+  pull_request:
+    branches: [ master, main ]
+  push:
+    branches-ignore: [ master, main ]
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Install dependencies
+      run: |
+        # Install dependencies for the extension only
+        cd winccoa-vscode-extension
+        npm install
+        
+    - name: Compile TypeScript (Extension only)
+      run: |
+        # Only compile the extension, skip language server due to winccoa-manager dependency
+        cd winccoa-vscode-extension
+        npm run compile
+        
+    - name: Install VSCE
+      run: npm install -g @vscode/vsce@2.22.0
+      
+    - name: Test package build
+      run: |
+        cd winccoa-vscode-extension
+        mkdir -p test-releases
+        # Debug: Check Node.js and VSCE versions
+        node --version
+        vsce --version
+        # Package from extension directory
+        echo "Packaging extension..."
+        vsce package --out test-releases/ || (echo "VSCE package failed, trying with --no-dependencies" && vsce package --no-dependencies --out test-releases/)
+        ls -la test-releases/
+        
+    - name: Upload test package
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-vsix-package
+        path: winccoa-vscode-extension/test-releases/*.vsix
+        retention-days: 7
