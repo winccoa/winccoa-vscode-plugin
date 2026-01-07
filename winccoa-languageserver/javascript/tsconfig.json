@@ -5,15 +5,11 @@
     "lib": [
       "ES2020"
     ],
-    "outDir": "./javascript",
-    "rootDir": "src",
     "strict": true,
     "sourceMap": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": [
-    "src/**/*"
-  ]
+  "include": [ "**/*.ts" ]
 }
