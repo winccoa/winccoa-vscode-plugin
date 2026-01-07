@@ -15,7 +15,8 @@
 		"StartMode": "Always",
 		"Options": "server.js"
 	    }
-	  ]
+	  ],
+	"UpdateScripts": ["compile.js"]
 	}
   ]
 }

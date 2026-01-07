@@ -1,6 +1,7 @@
 **/node_modules
 *-lock.json
 *.js
+!compile.js
 out/
 dist/
 .vscode-test/
@@ -8,3 +9,4 @@ dist/
 *.log
 .DS_Store
 *.lock
+*.map
