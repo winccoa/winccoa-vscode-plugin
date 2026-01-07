@@ -1,7 +1,6 @@
 **/node_modules
 *-lock.json
 *.js
-!compile.js
 out/
 dist/
 .vscode-test/
