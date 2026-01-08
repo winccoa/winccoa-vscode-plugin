@@ -183,7 +183,7 @@ const server = net.createServer((socket) => {
 
   function dpCreatedListener(details: any) {
     // console.log('DP created - details:');
-    console.log(details);
+    // console.log(details);
     const winccoa = requireWinccoaSafe();
     buildIndexFromWinccoa(winccoa, initQuery);
   }
@@ -604,7 +604,7 @@ function getCurrentStringAtPosition(document: TextDocument, position: { line: nu
       return line.substring(start + 1);
     }
   }
-  
+
   return undefined;
 }
 
