@@ -122,24 +122,29 @@ const server = net.createServer((socket) => {
           }
         }
       }
+
+      // CNS Index
+      const sysname = mgr.getSystemName();
+      const views = mgr.cnsGetViews(sysname.replace(':', ''));
+      // console.log("Views: " + views);
+      for (const view of views)
+      {
+        model.views.add(view.replace(':', ''));
+        const trees = await mgr.cnsGetTrees(view);
+        // console.log('Trees:', trees);
+        for (const tree of trees) {
+          await traverseTree(mgr, tree, model, view);
+        }
+      }
       
-      console.log('Index built - DPs:', model.dps.size, 'Total DPEs:', Array.from(model.dpes.values()).reduce((sum, set) => sum + set.size, 0));
+      // Calculate total sub maps (nodes) inside all CNS objects
+      const totalCnsNodes = Array.from(model.cns.values()).reduce((sum, nodeMap) => sum + nodeMap.size, 0);
+      
+      // console.log('Index built - Views:', model.views.size, "CNS trees:", model.cns.size, 'Total CNS nodes:', totalCnsNodes, 'DPs:', model.dps.size, 'Total DPEs:', Array.from(model.dpes.values()).reduce((sum, set) => sum + set.size, 0));
     } catch (e) {
       console.error('dpQuery failed: ' + e);
     }
-    // CNS Index
-    const sysname = mgr.getSystemName();
-    const views = mgr.cnsGetViews(sysname.replace(':', '')); //replace the ":" after systemname for cns views
-    // console.log("Views: " + views);
-    for (const view of views)
-    {
-      model.views.add(view.replace(':', ''));
-      const trees = await mgr.cnsGetTrees(view);
-      // console.log('Trees:', trees);
-      for (const tree of trees) {
-        await traverseTree(mgr, tree, model, view);
-      }
-    }
+
     // TODO: build index for message-catalogs and script files
   }
 
@@ -178,7 +183,7 @@ const server = net.createServer((socket) => {
 
   function dpCreatedListener(details: any) {
     // console.log('DP created - details:');
-    console.log(details);
+    // console.log(details);
     const winccoa = requireWinccoaSafe();
     buildIndexFromWinccoa(winccoa, initQuery);
   }
@@ -393,7 +398,6 @@ const server = net.createServer((socket) => {
     // Get the current word/string under cursor using word boundaries
     const currentWord = getCurrentStringAtPosition(doc, params.position) ?? '';
     
-    // console.log("Current word under cursor: " + currentWord);
     const looksLikeDp = currentWord.match(/^([A-Za-z0-9]+:)([A-Za-z0-9_.]+)(:[A-Za-z0-9_.]+)?$/i) ?? "";
     if (looksLikeDp) {
       try {
@@ -414,15 +418,14 @@ const server = net.createServer((socket) => {
           }
         };
       } catch (exc) {
-        //console.error('Hover retrieval failed:', exc);
+        console.error('Hover retrieval failed:', exc);
         return undefined;
       }
 
     }
   
   const looksLikeCns = getCurrentCNSFocus(doc, params.position) ?? '';
-  if (looksLikeCns) { 
-    //const set = model.cns.get(looksLikeCns[1])!;
+  if (looksLikeCns) {
     const winccoa = requireWinccoaSafe();
     const mgr = new winccoa.WinccoaManager();
     if (looksLikeCns.length <= 1) {
@@ -437,8 +440,6 @@ const server = net.createServer((socket) => {
       };
     }
     else {
-      //let exists = await mgr.cns_nodeExists(looksLikeCns.join(""));
-      //if (!exists) return undefined;
       const displayname = await mgr.cnsGetDisplayNames(looksLikeCns.join(""));
       const details = { type: 0 };
       const referenzDp = await mgr.cnsGetId(looksLikeCns.join(""), details);
@@ -588,8 +589,7 @@ function getCurrentStringAtPosition(document: TextDocument, position: { line: nu
       if (line.charAt(i) === quote && !inString) {
         start = i;
         inString = true;
-      }
-      if (line.charAt(i) === quote && inString) {
+      } else if (line.charAt(i) === quote && inString && i > start) {
         end = i;
         // Check if cursor is within this string
         if (char > start && char <= end) {
@@ -604,7 +604,7 @@ function getCurrentStringAtPosition(document: TextDocument, position: { line: nu
       return line.substring(start + 1);
     }
   }
-  
+
   return undefined;
 }
 
