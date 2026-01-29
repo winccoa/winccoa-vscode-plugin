@@ -336,6 +336,10 @@ const server = net.createServer((socket) => {
         if (typedDpe && model.dps.has(typedDp)) {
           // Complete DPE names for the exact DP
           const map = model.dpes.get(typedDp)!;
+          if (!map) {
+            // console.log('No DPE map found for DP:', typedDp);
+            return items;
+          }
           const elements = Array.from(map.keys());
           // console.log('Found elements for exact DP', typedDp, ':', elements ? Array.from(elements) : 'none');
           
