@@ -399,7 +399,7 @@ const server = net.createServer((socket) => {
     const notFoundHover: Hover = {
       contents: {
         kind: MarkupKind.Markdown,
-        value: `No matching datapoint found`
+        value: `No matching Datapoint found`
       }
     };
     
