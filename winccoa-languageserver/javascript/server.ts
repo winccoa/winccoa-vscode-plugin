@@ -396,8 +396,15 @@ const server = net.createServer((socket) => {
 
   // Hover: describe either DP or DPE
   connection.onHover(async (params): Promise<Hover | undefined> =>  {
+    const notFoundHover: Hover = {
+      contents: {
+        kind: MarkupKind.Markdown,
+        value: `No matching Datapoint found`
+      }
+    };
+    
     const doc = documents.get(params.textDocument.uri);
-    if (!doc) return undefined;
+    if (!doc) return notFoundHover;
     
     // Get the current word/string under cursor using word boundaries
     const currentWord = getCurrentStringAtPosition(doc, params.position) ?? '';
@@ -410,7 +417,7 @@ const server = net.createServer((socket) => {
         const winccoa = requireWinccoaSafe();
         const mgr = new winccoa.WinccoaManager();
         if (!mgr.dpExists(mydp))
-          return undefined;
+          return notFoundHover;
         const type = mgr.dpElementType(mydp);
         let unit = "";
         if (type && winccoa.WinccoaElementType) unit = winccoa.WinccoaElementType[type] as string;
@@ -423,10 +430,16 @@ const server = net.createServer((socket) => {
         };
       } catch (exc) {
         console.error('Hover retrieval failed:', exc);
-        return undefined;
+        return notFoundHover;
       }
-
     }
+  
+  const notFoundCnsHover: Hover = {
+    contents: {
+      kind: MarkupKind.Markdown,
+      value: `No matching CNS item found`
+    }
+  };
   
   const looksLikeCns = getCurrentCNSFocus(doc, params.position) ?? '';
   if (looksLikeCns) {
@@ -434,7 +447,7 @@ const server = net.createServer((socket) => {
     const mgr = new winccoa.WinccoaManager();
     if (looksLikeCns.length <= 1) {
       let existsView = await mgr.cns_viewExists(looksLikeCns[0]);
-      if (!existsView) return undefined;
+    if (!existsView) return notFoundCnsHover;
       const viewname = await mgr.cnsGetViewDisplayNames(looksLikeCns[0]);
       return {
         contents: {
@@ -444,20 +457,23 @@ const server = net.createServer((socket) => {
       };
     }
     else {
-      const displayname = await mgr.cnsGetDisplayNames(looksLikeCns.join(""));
+      const cnsName = looksLikeCns.join("");
+      let exists = await mgr.cns_nodeExists(cnsName);
+      if (!exists) return notFoundCnsHover;
+      const displayname = await mgr.cnsGetDisplayNames(cnsName);
       const details = { type: 0 };
-      const referenzDp = await mgr.cnsGetId(looksLikeCns.join(""), details);
+      const referenzDp = await mgr.cnsGetId(cnsName, details);
       const nodeType = await mgr.dpGet("_CNS_General.NodeTypes.TypeName");
       return {
         contents: {
           kind: MarkupKind.Markdown,
-          value: `View ${looksLikeCns.join("")} View Name: \`${displayname}\` Referenced DP: \`${referenzDp}\` Node Type: \`${nodeType[details.type -1]}\``
+          value: `View ${cnsName} View Name: \`${displayname}\` Referenced DP: \`${referenzDp}\` Node Type: \`${nodeType[details.type -1]}\``
         }
       };
     }
   }
 
-  return undefined;
+  return notFoundHover;
 });
 
   documents.listen(connection);
