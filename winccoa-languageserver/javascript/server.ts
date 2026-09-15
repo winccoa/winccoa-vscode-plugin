@@ -193,7 +193,7 @@ const server = net.createServer((socket) => {
       model.dps.clear(); model.dpes.clear();
       const winccoa = requireWinccoaSafe();
       await buildIndexFromWinccoa(winccoa, initQuery);
-      return true;
+      return null;
   });
 
   // Completion: offer names/paths from index
@@ -395,7 +395,7 @@ const server = net.createServer((socket) => {
   });
 
   // Hover: describe either DP or DPE
-  connection.onHover(async (params): Promise<Hover | undefined> =>  {
+  connection.onHover(async (params: TextDocumentPositionParams): Promise<Hover | undefined> =>  {
     const notFoundHover: Hover = {
       contents: {
         kind: MarkupKind.Markdown,
