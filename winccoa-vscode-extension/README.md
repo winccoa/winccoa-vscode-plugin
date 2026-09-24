@@ -36,7 +36,7 @@ Enhanced scripting support for WinCC OA projects inside Visual Studio Code. This
 2. Build the language server (see [Building the language server](#building-the-language-server)).
 3. Add a JavaScript manager using the server.js to your WinCC OA project for running the language server.
 4. Open your projects javascript sub-folder in VS Code.
-5. When prompted, allow the extension to start its language server.
+5. When prompted, allow the extension to connect to the language server.
 
 ## Building the language server
 
