@@ -25,18 +25,37 @@ Enhanced scripting support for WinCC OA projects inside Visual Studio Code. This
 
 ## Related official documentation
 
-- WinCC OA JavaScript Manager (concepts, architecture, startup)
-  - https://www.winccoa.com/documentation/WinCCOA/latest/en_US/index.html
+- [WinCC OA JavaScript Manager](https://www.winccoa.com/documentation/WinCCOA/latest/en_US/index.html) — concepts, architecture, startup
 - Using the `WinccoaManager` class from the `winccoa-manager` package
-  - https://www.winccoa.com/documentation/WinCCOA/latest/en_US/NodeJS/topics/nodejs_basic_configuration.html
-  - API index: https://www.winccoa.com/documentation/WinCCOA/latest/en_US/apis/winccoa-manager/index.html
+  - [NodeJS Basic configuration](https://www.winccoa.com/documentation/WinCCOA/latest/en_US/NodeJS/topics/nodejs_basic_configuration.html)
+  - [API index](https://www.winccoa.com/documentation/WinCCOA/latest/en_US/apis/winccoa-manager/index.html)
 
 ## Installation
 
 1. Install this extension from the VS Code Marketplace or via the VSIX file.
-2. Add a JavaScript manager to your WinCC OA project for running the language server.
-3. Open your projects javascript sub-folder in VS Code.
-4. When prompted, allow the extension to start its language server.
+2. Build the language server (see [Building the language server](#building-the-language-server)).
+3. Add a JavaScript manager using the server.js to your WinCC OA project for running the language server.
+4. Open your projects javascript sub-folder in VS Code.
+5. When prompted, allow the extension to start its language server.
+
+## Building the language server
+
+The language server is located in the `winccoa-languageserver/javascript/` folder. It is written in TypeScript and must be compiled to JavaScript before it can be used as a WinCC OA JavaScript Manager.
+
+> Use `npm ci` instead of `npm install`. `npm ci` installs the exact dependency versions recorded in `package-lock.json`.
+
+```bash
+# Navigate to the language server folder
+cd winccoa-languageserver/javascript
+
+# Install dependencies (exact versions from the lock file)
+npm ci
+
+# Compile TypeScript to JavaScript
+npm run compile
+```
+
+The compiled output is written to the same folder as `server.js` (defined as `main` in `package.json`). Deploy that file and the `node_modules` folder to your WinCC OA project's JavaScript Manager path.
 
 ## Features in detail
 
